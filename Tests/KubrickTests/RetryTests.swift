@@ -29,8 +29,6 @@ class RetryTests: XCTestCase {
     }
   }
 
-  let tempDir = URL(filePath: NSTemporaryDirectory(), directoryHint: .isDirectory)
-
   func test_RetryUniqueInputs() async throws {
 
     struct RetriedJob: ResultJob {
@@ -84,7 +82,7 @@ class RetryTests: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 
@@ -154,7 +152,7 @@ class RetryTests: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 
@@ -207,7 +205,7 @@ class RetryTests: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 

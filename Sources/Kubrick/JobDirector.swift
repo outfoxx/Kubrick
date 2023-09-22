@@ -43,7 +43,7 @@ public actor JobDirector: Identifiable {
   let resultState: RegisterCache<JobKey, Data>
   let store: JobDirectorStore
 
-  private var taskQueue = TaskQueue()
+  let taskQueue = TaskQueue()
 
   public init(
     id: ID = .generate(),
@@ -53,7 +53,7 @@ public actor JobDirector: Identifiable {
   ) throws {
     self.id = id
     self.injected = injected
-    self.store = try JobDirectorStore(location: Self.location(id: id, directory: directory),
+    self.store = try JobDirectorStore(location: Self.storeLocation(id: id, directory: directory),
                                       typeResolver: typeResolver)
     self.resultState = RegisterCache(store: self.store)
   }
@@ -65,14 +65,14 @@ public actor JobDirector: Identifiable {
     self.resultState = RegisterCache(store: store)
   }
 
-  static func location(id: ID, directory: URL) -> URL {
+  static func storeLocation(id: ID, directory: URL) -> URL {
     return directory.appendingPathComponent(id.description).appendingPathExtension("job-store")
   }
 
-  public nonisolated func submit(_ job: some SubmittableJob) {
-    Task {
+  public nonisolated func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) {
+    taskQueue.addTask {
       do {
-        try await submit(job, id: id)
+        try await self.submit(job, id: id, expiration: expiration)
       }
       catch {
         logger.error("Submission failed: error=\(error, privacy: .public)")
@@ -80,11 +80,16 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  func submit(_ job: some SubmittableJob, id: JobID = .init()) async throws {
+  func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) async throws {
 
-    try await store.saveJob(job, id: id.uuid)
+    guard try await store.saveJob(job, id: id, expiration: expiration) else {
 
-    try await process(job, submission: id)
+      logger.info("[\(id)] Skipping proccessing of duplicate job")
+
+      return
+    }
+
+    try await process(job, submission: id, expiration: expiration)
   }
 
   public func reload() async throws -> Int {
@@ -93,9 +98,9 @@ public actor JobDirector: Identifiable {
 
     try await withThrowingTaskGroup(of: Void.self) { group in
       
-      for (id, job) in jobs {
+      for (job, id, expiration) in jobs {
         group.addTask {
-          try await self.process(job, submission: JobID(uuid: id))
+          try await self.process(job, submission: id, expiration: expiration)
         }
       }
 
@@ -218,17 +223,35 @@ public actor JobDirector: Identifiable {
     return try CBORDecoder.default.decode(ResultState<J.Value>.self, from: serializedState).result
   }
 
-  private func process<J: SubmittableJob>(_ job: J, submission: JobID) async throws {
+  private func process<J: SubmittableJob>(_ job: J, submission: JobID, expiration: Date) async throws {
 
-    let result = try await resolve(job, submission: submission).result
+    let (jobKey, result) = try await resolve(job, submission: submission)
 
-    if case .failure(let error) = result {
-      logger.error("[\(submission)] Execution failed: error=\(error, privacy: .public)")
-    }
+    try await sleep(until: expiration)
 
     logger.debug("[\(submission)] Removing completed job")
 
-    try await store.removeJob(for: submission.uuid)
+    try await removeJob(jobKey: jobKey)
+
+    if case .failure(let error) = result {
+      logger.error("[\(submission)] Submission processing failed: error=\(error, privacy: .public)")
+    }
+  }
+
+  private func removeJob(jobKey: JobKey) async throws {
+    
+    async let deregister: Void? = try await resultState.deregister(for: jobKey)
+    async let remove: Void? = try store.removeJob(for: jobKey.submission)
+
+    try await deregister
+    try await remove
+  }
+
+  private func sleep(until date: Date) async throws {
+
+    let duration = max(date.timeIntervalSinceReferenceDate - Date.now.timeIntervalSinceReferenceDate, 0)
+
+    try await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
   }
 
 }

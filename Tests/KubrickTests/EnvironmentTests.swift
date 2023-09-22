@@ -15,8 +15,6 @@ import XCTest
 
 public class EnvironmentTest: XCTestCase {
 
-  let tempDir = URL(filePath: NSTemporaryDirectory(), directoryHint: .isDirectory)
-
   public func test_CurrentJobKey() async throws {
 
     struct MainJob: SubmittableJob {
@@ -44,7 +42,7 @@ public class EnvironmentTest: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 
@@ -87,7 +85,7 @@ public class EnvironmentTest: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 
@@ -136,7 +134,7 @@ public class EnvironmentTest: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 

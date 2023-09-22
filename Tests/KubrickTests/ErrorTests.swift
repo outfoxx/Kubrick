@@ -21,8 +21,6 @@ class ErrorTests: XCTestCase {
     case test2
   }
 
-  let tempDir = URL(filePath: NSTemporaryDirectory(), directoryHint: .isDirectory)
-
   func test_ExecuteNotCalledWhenFailingInputs() async throws {
 
     struct ThrowingJob: ExecutableJob {
@@ -51,7 +49,7 @@ class ErrorTests: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     try await director.submit(MainJob(), id: JobID(string: "1hN7K3p95FQHn3CD2n7WW7")!)
 
@@ -107,7 +105,7 @@ class ErrorTests: XCTestCase {
 
     let onCancelled = expectation(description: "NeverEndingJob Cancelled")
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     try await director.submit(MainJob { onCancelled.fulfill() }, id: JobID(string: "75AtTO40PzFkM11yULcgD")!)
 
@@ -154,7 +152,7 @@ class ErrorTests: XCTestCase {
 
     let executed = expectation(description: "MainJob executed")
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let mainJob = MainJob {
       XCTAssertEqual($0, -1)
@@ -219,7 +217,7 @@ class ErrorTests: XCTestCase {
 
     let executed = expectation(description: "MainJob executed")
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let mainJob = MainJob { error in
       XCTAssertEqual(error as NSError, TestError.test2 as NSError)

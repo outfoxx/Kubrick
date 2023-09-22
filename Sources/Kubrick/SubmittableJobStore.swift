@@ -11,11 +11,15 @@
 import Foundation
 
 
-public protocol SubmittableJobStore {
+typealias SubmittedJob = (job: any SubmittableJob, id: JobID, expiration: Date)
 
-  func loadJobs() async throws -> [(UUID, any SubmittableJob)]
 
-  func saveJob(_ job: some SubmittableJob, id: UUID) async throws
-  func removeJob(for id: UUID) async throws
+protocol SubmittableJobStore {
+
+  func loadJobs() async throws -> [SubmittedJob]
+
+  func saveJob(_ job: some SubmittableJob, id: JobID, expiration: Date) async throws -> Bool
+
+  func removeJob(for id: JobID) async throws
 
 }

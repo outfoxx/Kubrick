@@ -60,3 +60,18 @@ extension SubmittableJob {
   }
 
 }
+
+
+public extension SubmittableJob where Self: Codable {
+
+
+  init(data: Data) throws {
+    self = try CBORDecoder.default.decode(Self.self, from: data)
+  }
+
+  func encode() throws -> Data {
+    try CBOREncoder.deterministic.encode(self)
+  }
+
+
+}

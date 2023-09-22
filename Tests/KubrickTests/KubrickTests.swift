@@ -51,7 +51,7 @@ final class KubrickTests: XCTestCase {
       print("📤 Submitting job to director")
 
       let job = ProcessMessageJob(summary: summary)
-      try await director.submit(job, id: JobID())
+      try await director.submit(job, id: JobID(string: "32SrLZWr4mC3rvXDlQ8Jem")!)
     }
   }
 }

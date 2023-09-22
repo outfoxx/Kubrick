@@ -13,12 +13,13 @@ import Foundation
 
 
 public protocol RegisterCacheStore<Key, Value> {
-  associatedtype Key
+  associatedtype Key: Hashable
   associatedtype Value
 
   func value(forKey key: Key) async throws -> Value?
   func updateValue(_ value: Value, forKey key: Key) async throws
   func removeValue(forKey key: Key) async throws
+  func removeValues(forKeys keys: Set<Key>) async throws
 
 }
 
@@ -29,15 +30,13 @@ public actor RegisterCache<Key: Hashable, Value> {
 
     public init() {}
 
-    public func value(forKey key: Key) async throws -> Value? {
-      return nil
-    }
+    public func value(forKey key: Key) async throws -> Value? { nil }
 
-    public func updateValue(_ value: Value, forKey key: Key) async throws {
-    }
+    public func updateValue(_ value: Value, forKey key: Key) async throws {}
 
-    public func removeValue(forKey key: Key) async throws {
-    }
+    public func removeValue(forKey key: Key) async throws {}
+
+    public func removeValues(forKeys keys: Set<Key>) async throws {}
 
   }
 
@@ -72,10 +71,24 @@ public actor RegisterCache<Key: Hashable, Value> {
   ///
   public func register(for key: Key, initializer: @escaping () async throws -> Value) async throws -> Value {
 
+    switch state[key] {
+    case .none:
+      let future = Future()
+      state[key] = .available(future)
+      return try await initialize(future: future)
+
+    case .waiting(let future):
+      state[key] = .available(future)
+      return try await initialize(future: future)
+
+    case .available(let future):
+      return try await future.get()
+    }
+
     func initialize(future: Future) async throws -> Value {
       let initTask = Task {
         do {
-          
+
           let value: Value
           if let current = try await store.value(forKey: key) {
             value = current
@@ -104,36 +117,21 @@ public actor RegisterCache<Key: Hashable, Value> {
         }
       }
     }
-
-    switch state[key] {
-    case .none:
-      let future = Future()
-      state[key] = .available(future)
-      return try await initialize(future: future)
-
-    case .waiting(let future):
-      state[key] = .available(future)
-      return try await initialize(future: future)
-
-    case .available(let future):
-      return try await future.get()
-    }
-  }
-
-  public func reset(for key: Key) async {
-
-    guard state[key] != nil else {
-      return
-    }
-
-    state[key] = .waiting(Future())
-
-    try? await store.removeValue(forKey: key)
   }
 
   public func deregister(for key: Key) async throws {
     try await store.removeValue(forKey: key)
     state.removeValue(forKey: key)
+  }
+
+  public func deregister(filter: (Key) -> Bool) async throws {
+    
+    let saved = state.filter { key, _ in filter(key) }
+    let removed = Set(state.keys).subtracting(saved.keys)
+
+    state = saved
+
+    try await store.removeValues(forKeys: removed)
   }
 
   /// Returns the value associated with the given `key`, waiting indefinitely until `key`

@@ -20,8 +20,6 @@ class MapTests: XCTestCase {
     case test
   }
 
-  let tempDir = URL(filePath: NSTemporaryDirectory(), directoryHint: .isDirectory)
-
   func test_MappingValuesToDifferentTypes() async throws {
 
     struct IntJob: ResultJob {
@@ -60,7 +58,7 @@ class MapTests: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 
@@ -110,7 +108,7 @@ class MapTests: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 
@@ -163,7 +161,7 @@ class MapTests: XCTestCase {
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
 
     let executed = expectation(description: "MainJob executed")
 

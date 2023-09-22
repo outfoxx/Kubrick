@@ -18,12 +18,6 @@ import XCTest
 
 class URLSessionJobManagerTests: XCTestCase {
 
-  let tempDir = {
-    let url = URL(filePath: NSTemporaryDirectory(), directoryHint: .isDirectory)
-    try! FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-    return url
-  }()
-
   func test_DownloadJob() async throws {
 
     let testServer = try RoutingHTTPServer {
@@ -89,7 +83,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let requestURL = serverURL.appendingPathComponent("test-file")
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     let progressed = expectation(description: "Download progressed")
@@ -167,7 +161,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let requestURL = serverURL.appendingPathComponent("test-file")
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     let executed = expectation(description: "MainJob executed")
@@ -224,7 +218,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let nonExistentServerURL = URL(string: "http://\(UniqueID.generateString())")!
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     let executed = expectation(description: "MainJob executed")
@@ -304,11 +298,13 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let requestURL = serverURL.appendingPathComponent("test-file")
 
-    let fileURL = tempDir.appendingPathComponent(UniqueID.generateString()).appendingPathExtension("data")
+    let fileURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UniqueID.generateString())
+      .appendingPathExtension("data")
     try Data((0 ..< 512 * 1024).map { _ in UInt8.random(in: .min ..< .max) })
       .write(to: fileURL)
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     let progressed = expectation(description: "Upload progressed")
@@ -384,11 +380,13 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let requestURL = serverURL.appendingPathComponent("test-file")
 
-    let fileURL = tempDir.appendingPathComponent(UniqueID.generateString()).appendingPathExtension("data")
+    let fileURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UniqueID.generateString())
+      .appendingPathExtension("data")
     try Data((0 ..< 512 * 1024).map { _ in UInt8.random(in: .min ..< .max) })
       .write(to: fileURL)
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     let executed = expectation(description: "MainJob executed")
@@ -449,9 +447,11 @@ class URLSessionJobManagerTests: XCTestCase {
     ])
 
     let nonExistentServerURL = URL(string: "http://\(UniqueID.generateString())")!
-    let nonExistentFileURL = tempDir.appendingPathComponent(UniqueID.generateString()).appendingPathExtension("data")
+    let nonExistentFileURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UniqueID.generateString())
+      .appendingPathExtension("data")
 
-    let director = try JobDirector(directory: tempDir, typeResolver: typeResolver)
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     let executed = expectation(description: "MainJob executed")
