@@ -260,6 +260,12 @@ public actor JobDirector: Identifiable {
 // MARK: Environment
 
 extension JobEnvironment {
+  public var dynamicJobs: DynamicJobDirector {
+    get { CurrentDynamicJobDirector(director: currentJobDirector, parentJobKey: currentJobKey) }
+  }
+}
+
+extension JobEnvironment {
   public var currentJobDirector: JobDirector {
     get {
       guard let director = JobDirector.currentJobDirector else {
