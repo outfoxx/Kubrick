@@ -40,33 +40,25 @@ public actor JobDirector: Identifiable {
   public nonisolated let id: ID
   public nonisolated let injected: JobInjectValues
 
-  let resultState: RegisterCache<JobKey, Data>
-  let store: JobDirectorStore
-
-  let taskQueue = TaskQueue()
+  private let taskQueue = TaskQueue()
+  private let resultState: RegisterCache<JobKey, Data>
+  private let store: JobDirectorStore
 
   public init(
     id: ID = .generate(),
     directory: URL,
-    typeResolver: SubmittableJobTypeResolver,
-    injected: JobInjectValues = .init()
+    typeResolver: SubmittableJobTypeResolver
   ) throws {
-    self.id = id
-    self.injected = injected
-    self.store = try JobDirectorStore(location: Self.storeLocation(id: id, directory: directory),
-                                      typeResolver: typeResolver)
-    self.resultState = RegisterCache(store: self.store)
+    let store = try JobDirectorStore(location: Self.storeLocation(id: id, directory: directory),
+                                     typeResolver: typeResolver)
+    self.init(id: id, store: store)
   }
 
-  init(id: ID, store: JobDirectorStore, injected: JobInjectValues) {
+  init(id: ID, store: JobDirectorStore) {
     self.id = id
     self.store = store
-    self.injected = injected
+    self.injected = JobInjectValues()
     self.resultState = RegisterCache(store: store)
-  }
-
-  static func storeLocation(id: ID, directory: URL) -> URL {
-    return directory.appendingPathComponent(id.description).appendingPathExtension("job-store")
   }
 
   public nonisolated func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) {
@@ -78,6 +70,29 @@ public actor JobDirector: Identifiable {
         logger.error("Submission failed: error=\(error, privacy: .public)")
       }
     }
+  }
+
+  public func reload() async throws -> Int {
+
+    let jobs = try await store.loadJobs()
+
+    for (job, id, expiration) in jobs {
+
+      taskQueue.addTask {
+
+        try await self.process(job, submission: id, expiration: expiration)
+      }
+    }
+
+    return jobs.count
+  }
+
+  public func waitForCompletionOfCurrentJobs(seconds: TimeInterval) async throws {
+    return try await taskQueue.wait(forNanoseconds: UInt64(seconds * 1_000_000_000))
+  }
+
+  public var submittedJobCount: Int {
+    get async throws { try await store.jobCount }
   }
 
   func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) async throws {
@@ -92,25 +107,45 @@ public actor JobDirector: Identifiable {
     try await process(job, submission: id, expiration: expiration)
   }
 
-  public func reload() async throws -> Int {
-    
-    let jobs = try await store.loadJobs()
+  func resolve<J: Job>(_ job: J, submission: JobID) async throws -> (jobKey: JobKey, result: JobResult<J.Value>) {
 
-    try await withThrowingTaskGroup(of: Void.self) { group in
-      
-      for (job, id, expiration) in jobs {
-        group.addTask {
-          try await self.process(job, submission: id, expiration: expiration)
-        }
-      }
+    let (jobKey, inputResults) = try await prepare(job: job, submission: submission)
 
-      for try await _ in group {}
+    do {
+
+      logger.debug("[\(jobKey)] Fingerprint: job-type=\(type(of: job))")
+
+      let result = try await persist(job: job, key: jobKey, inputResults: inputResults)
+
+      logger.trace("[\(jobKey)] Resolved, returning result")
+
+      return (jobKey, result)
     }
-    
-    return jobs.count
+    catch {
+      return (jobKey, .failure(error))
+    }
   }
 
-  func resolveInputs(job: some Job, submission: JobID) async throws -> ResolvedInputs {
+  func unresolve(jobKey: JobKey) async throws {
+    try await resultState.deregister(for: jobKey)
+  }
+
+  private func process<J: SubmittableJob>(_ job: J, submission: JobID, expiration: Date) async throws {
+
+    let (jobKey, result) = try await resolve(job, submission: submission)
+
+    try await Task.sleep(until: expiration)
+
+    logger.debug("[\(submission)] Removing completed job")
+
+    try await removeJob(jobKey: jobKey)
+
+    if case .failure(let error) = result {
+      logger.error("[\(submission)] Submission processing failed: error=\(error, privacy: .public)")
+    }
+  }
+
+  private func resolveInputs(job: some Job, submission: JobID) async throws -> ResolvedInputs {
     logger.trace("Resolving inputs: job-type=\(type(of: job))")
 
     @Sendable func resolve(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {
@@ -155,7 +190,7 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  func fingerprint(job: some Job, resolved: ResolvedInputs, submission: JobID) throws -> JobKey {
+  private func fingerprint(job: some Job, resolved: ResolvedInputs, submission: JobID) throws -> JobKey {
 
     var inputHasher = SHA256()
     inputHasher.update(type: type(of: job))
@@ -168,7 +203,7 @@ public actor JobDirector: Identifiable {
     return JobKey(submission: submission, fingerprint: inputHasher.finalized())
   }
 
-  func prepare(job: some Job, submission: JobID) async throws -> (JobKey, JobInputResults) {
+  private func prepare(job: some Job, submission: JobID) async throws -> (JobKey, JobInputResults) {
 
     let resolvedInputs = try await resolveInputs(job: job, submission: submission)
 
@@ -176,29 +211,6 @@ public actor JobDirector: Identifiable {
     let values = Dictionary(uniqueKeysWithValues: resolvedInputs.map { ($0.id, $0.result) })
 
     return (jobKey, values)
-  }
-
-  func resolve<J: Job>(_ job: J, submission: JobID) async throws -> (jobKey: JobKey, result: JobResult<J.Value>) {
-
-    let (jobKey, inputResults) = try await prepare(job: job, submission: submission)
-
-    do {
-
-      logger.debug("[\(jobKey)] Fingerprint: job-type=\(type(of: job))")
-
-      let result = try await persist(job: job, key: jobKey, inputResults: inputResults)
-
-      logger.trace("[\(jobKey)] Resolved, returning result")
-
-      return (jobKey, result)
-    }
-    catch {
-      return (jobKey, .failure(error))
-    }
-  }
-
-  func unresolve(jobKey: JobKey) async throws {
-    try await resultState.deregister(for: jobKey)
   }
 
   private func persist<J: Job>(
@@ -223,21 +235,6 @@ public actor JobDirector: Identifiable {
     return try CBORDecoder.default.decode(ResultState<J.Value>.self, from: serializedState).result
   }
 
-  private func process<J: SubmittableJob>(_ job: J, submission: JobID, expiration: Date) async throws {
-
-    let (jobKey, result) = try await resolve(job, submission: submission)
-
-    try await sleep(until: expiration)
-
-    logger.debug("[\(submission)] Removing completed job")
-
-    try await removeJob(jobKey: jobKey)
-
-    if case .failure(let error) = result {
-      logger.error("[\(submission)] Submission processing failed: error=\(error, privacy: .public)")
-    }
-  }
-
   private func removeJob(jobKey: JobKey) async throws {
     
     async let deregister: Void? = try await resultState.deregister(for: jobKey)
@@ -247,11 +244,8 @@ public actor JobDirector: Identifiable {
     try await remove
   }
 
-  private func sleep(until date: Date) async throws {
-
-    let duration = max(date.timeIntervalSinceReferenceDate - Date.now.timeIntervalSinceReferenceDate, 0)
-
-    try await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+  private static func storeLocation(id: ID, directory: URL) -> URL {
+    return directory.appendingPathComponent(id.description).appendingPathExtension("job-store")
   }
 
 }

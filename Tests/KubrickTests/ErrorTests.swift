@@ -54,8 +54,8 @@ class ErrorTests: XCTestCase {
     try await director.submit(MainJob(), id: JobID(string: "1hN7K3p95FQHn3CD2n7WW7")!)
 
     // Ensure MainJob was completed
-    let jobs = try await director.store.loadJobs()
-    XCTAssertEqual(jobs.count, 0)
+    let jobCount = try await director.submittedJobCount
+    XCTAssertEqual(jobCount, 0)
   }
 
   func test_FailingInputsCancelAllResolvingInputs() async throws {

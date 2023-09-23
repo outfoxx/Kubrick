@@ -118,6 +118,14 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
 
   // MARK: SubmittableJobStore
 
+  var jobCount: Int {
+    get async throws {
+      try await dbQueue.read { db in
+        try SubmittedJobEntry.fetchCount(db)
+      }
+    }
+  }
+
   func loadJobs() async throws -> [SubmittedJob] {
     let entries = try await dbQueue.read { db in
       try SubmittedJobEntry.fetchAll(db)

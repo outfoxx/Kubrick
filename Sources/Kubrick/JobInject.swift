@@ -78,6 +78,42 @@ public class JobInjectValues {
     self.values = values
   }
 
+  public func provide<Dependency>(
+    _ value: Dependency,
+    tags: [String] = [],
+    forTypes types: [Dependency.Type] = [Dependency.self]
+  ) {
+    types.forEach { self[$0, tags: tags] = value }
+  }
+
+  public func provide<Dependency>(_ value: Dependency, tags: String..., forTypes types: Dependency.Type...) {
+    provide(value, tags: tags, forTypes: types)
+  }
+
+  public func provide<Dependency, Tag: RawRepresentable>(
+    _ value: Dependency,
+    tags: [Tag] = [],
+    forTypes types: [Dependency.Type] = [Dependency.self]
+  ) where Tag.RawValue: CustomStringConvertible {
+    types.forEach { self[$0, tags: tags] = value }
+  }
+
+  public func provide<Dependency, Tag: RawRepresentable>(
+    _ value: Dependency,
+    tags: Tag...,
+    forTypes types: [Dependency.Type] = [Dependency.self]
+  ) where Tag.RawValue: CustomStringConvertible {
+    types.forEach { self[$0, tags: tags] = value }
+  }
+
+  public func provide<Dependency, Tag: RawRepresentable>(
+    _ value: Dependency,
+    tags: Tag...,
+    forTypes types: Dependency.Type...
+  ) where Tag.RawValue: CustomStringConvertible {
+    types.forEach { self[$0, tags: tags] = value }
+  }
+
   public subscript<Dependency>(_ type: Dependency.Type, tags tags: [String] = []) -> Dependency {
     get { self[JobInjectKey(tags: tags)] }
     set { self[JobInjectKey(tags: tags)] = newValue }

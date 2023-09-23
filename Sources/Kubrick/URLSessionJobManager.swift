@@ -280,8 +280,9 @@ public actor URLSessionJobManager {
 
     self.urlSession = URLSession(configuration: configuration, delegate: delegate, delegateQueue: operationQueue)
     self.director = director
-
+    
     delegate.owner = self
+
     operationQueue.isSuspended = false
   }
 

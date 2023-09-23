@@ -16,6 +16,8 @@ typealias SubmittedJob = (job: any SubmittableJob, id: JobID, expiration: Date)
 
 protocol SubmittableJobStore {
 
+  var jobCount: Int { get async throws }
+
   func loadJobs() async throws -> [SubmittedJob]
 
   func saveJob(_ job: some SubmittableJob, id: JobID, expiration: Date) async throws -> Bool

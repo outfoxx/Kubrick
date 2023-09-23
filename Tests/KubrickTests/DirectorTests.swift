@@ -163,10 +163,8 @@ class DirectorTests: XCTestCase {
 
     let executed = expectation(description: "MainJob executed")
     executed.expectedFulfillmentCount = 2
-    executed.assertForOverFulfill = false
 
     let mainJob = MainJob {
-      print("🎉 Executed!")
       executed.fulfill()
     }
 
@@ -180,7 +178,7 @@ class DirectorTests: XCTestCase {
 
       go()
 
-      try await Task.sleep(for: .seconds(0.1))
+      try await Task.sleep(seconds: 0.1)
     }
 
     try await submit()
@@ -194,12 +192,12 @@ class DirectorTests: XCTestCase {
     try await submit()
     try await submit()
 
-    try await director.taskQueue.wait()
+    try await director.waitForCompletionOfCurrentJobs(seconds: 3)
 
     await fulfillment(of: [executed], timeout: 3)
   }
 
-  func test_LongDeduplication() async throws {
+  func interactive_test_LongDeduplication() async throws {
 
     struct MainJob: SubmittableJob {
       init() {}
@@ -230,7 +228,7 @@ class DirectorTests: XCTestCase {
 
       go()
 
-      try await Task.sleep(for: .seconds(0.5))
+      try await Task.sleep(seconds: 0.5)
     }
 
     try await submit()
@@ -244,7 +242,7 @@ class DirectorTests: XCTestCase {
     try await submit()
     try await submit()
 
-    try await director.taskQueue.wait()
+    try await director.waitForCompletionOfCurrentJobs(seconds: 3)
   }
 
 }

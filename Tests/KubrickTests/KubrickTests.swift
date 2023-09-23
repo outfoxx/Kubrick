@@ -18,22 +18,18 @@ import XCTest
 
 final class KubrickTests: XCTestCase {
 
-  var director: JobDirector!
-
   func testExample() async throws {
+
     let directorId = JobDirector.ID(string: "2SdMYYK0hxdGouMBjmAGid")!
+
     let director = try JobDirector(id: directorId,
                                    directory: URL(filePath: "/Users/kdubb/Downloads/KubrickTest"),
                                    typeResolver: jobTypeResolver)
 
-    let injected = director.injected
-
-    let urlSessionJobs = URLSessionJobManager(configuration: .background(withIdentifier: directorId.description),
-                                              director: director)
-    
-    injected[URLSessionJobManager.self] = urlSessionJobs
-    injected[MessageCipherFactory.self] = SimpleMessageCipherFactory()
-    injected[MessageSignerFactory.self] = SimpleMessageSignerFactory()
+    director.injected.provide(URLSessionJobManager(configuration: .background(withIdentifier: directorId.description),
+                                                   director: director))
+    director.injected.provide(SimpleMessageCipherFactory(), forTypes: MessageCipherFactory.self)
+    director.injected.provide(SimpleMessageSignerFactory(), forTypes: MessageSignerFactory.self)
 
     let summary = MessageSummary(sender: .init(address: URL(string: "http://example.com")!, alias: "test"),
                                  attachments: [
@@ -43,18 +39,23 @@ final class KubrickTests: XCTestCase {
                                  ])
 
     if try await director.reload() > 0 {
-      print("💾 Director reloaded previous jobs, not submitting new job")
+
+      print("📤 Jobs reloaded... waiting for completion of jobs")
+
+      try await director.waitForCompletionOfCurrentJobs(seconds: 30 * 60)
+
     }
     else {
-      await urlSessionJobs.urlSession.allTasks.forEach { $0.cancel() }
 
       print("📤 Submitting job to director")
 
-      let job = ProcessMessageJob(summary: summary)
-      try await director.submit(job, id: JobID(string: "32SrLZWr4mC3rvXDlQ8Jem")!)
+      try await director.submit(ProcessMessageJob(summary: summary),
+                                id: JobID(string: "32SrLZWr4mC3rvXDlQ8Jem")!)
+
     }
   }
 }
+
 
 let jobTypeResolver = TypeNameJobTypeResolver(types: [
   ProcessMessageJob.self

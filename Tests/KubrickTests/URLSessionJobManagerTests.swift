@@ -84,6 +84,7 @@ class URLSessionJobManagerTests: XCTestCase {
     let requestURL = serverURL.appendingPathComponent("test-file")
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     let progressed = expectation(description: "Download progressed")
