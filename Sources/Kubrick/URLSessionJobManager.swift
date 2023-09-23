@@ -587,7 +587,7 @@ extension URLRequest: Codable {
     allowsConstrainedNetworkAccess = try container.decode(Bool.self, forKey: .allowsConstrainedNetworkAccess)
     assumesHTTP3Capable = try container.decode(Bool.self, forKey: .assumesHTTP3Capable)
     attribution = Attribution(rawValue: try container.decode(Attribution.RawValue.self, forKey: .attribution)) ?? .developer
-    if #available(macOS 13, iOS 16, tvOS 16, watchOS 8, *) {
+    if #available(macOS 13, iOS 16.1, tvOS 16, watchOS 8, *) {
       requiresDNSSECValidation = try container.decode(Bool.self, forKey: .requiresDNSSECValidation)
     }
   }
@@ -609,7 +609,7 @@ extension URLRequest: Codable {
     try container.encode(allowsConstrainedNetworkAccess, forKey: .allowsConstrainedNetworkAccess)
     try container.encode(assumesHTTP3Capable, forKey: .assumesHTTP3Capable)
     try container.encode(attribution.rawValue, forKey: .attribution)
-    if #available(macOS 13, iOS 16, tvOS 16, watchOS 8, *) {
+    if #available(macOS 13, iOS 16.1, tvOS 16, watchOS 8, *) {
       try container.encode(requiresDNSSECValidation, forKey: .requiresDNSSECValidation)
     }
   }

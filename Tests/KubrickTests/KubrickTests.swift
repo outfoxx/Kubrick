@@ -23,7 +23,7 @@ final class KubrickTests: XCTestCase {
     let directorId = JobDirector.ID(string: "2SdMYYK0hxdGouMBjmAGid")!
 
     let director = try JobDirector(id: directorId,
-                                   directory: URL(filePath: "/Users/kdubb/Downloads/KubrickTest"),
+                                   directory: URL(fileURLWithPath: "/Users/kdubb/Downloads/KubrickTest"),
                                    typeResolver: jobTypeResolver)
 
     director.injected.provide(URLSessionJobManager(configuration: .background(withIdentifier: directorId.description),
@@ -99,11 +99,11 @@ struct ProcessMessageJob: SubmittableJob {
   func execute() async {
     print("🎉🎉🎉 WE MADE IT 🎉🎉🎉")
 
-    let saveDir = URL(filePath: "/Users/kdubb/downloads/KubrickTest")
+    let saveDir = URL(fileURLWithPath: "/Users/kdubb/downloads/KubrickTest")
 
     for (key, url) in downloadedAttachments {
       print("🗂️ Saving attachment file: \(key)")
-      let targetFile = saveDir.appending(path: key).appendingPathExtension("data")
+      let targetFile = saveDir.appendingPathComponent(key).appendingPathExtension("data")
       try? FileManager.default.moveItem(at: url, to: targetFile)
     }
   }
