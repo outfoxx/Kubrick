@@ -18,7 +18,7 @@ import XCTest
 
 final class KubrickTests: XCTestCase {
 
-  func testExample() async throws {
+  func interactive_test_Example() async throws {
 
     let directorId = JobDirector.ID(string: "2SdMYYK0hxdGouMBjmAGid")!
 

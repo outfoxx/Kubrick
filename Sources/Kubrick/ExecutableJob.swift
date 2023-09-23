@@ -30,7 +30,7 @@ extension ExecutableJob {
     for director: JobDirector
   ) async -> JobResult<Value> {
 
-    logger.debug("[\(jobKey)] Executing")
+    logger.jobTrace { $0.trace("[\(jobKey)] Executing") }
 
     return await JobDirector.$currentJobDirector.withValue(director) {
       await JobDirector.$currentJobKey.withValue(jobKey) {

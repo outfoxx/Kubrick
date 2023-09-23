@@ -95,8 +95,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let id = JobID()
     let mainJob = MainJob(url: requestURL) { _, current, total in
-
-      print("Progressed: current=\(current), total=\(total)")
+      //print("Progressed: current=\(current), total=\(total)")
       progressed.fulfill()
 
     } onExecute: { download in
@@ -315,8 +314,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let id = JobID()
     let mainJob = MainJob(fromFile: fileURL, toURL: requestURL) { _, current, total in
-
-      print("Progressed: current=\(current), total=\(total)")
+      //print("Progressed: current=\(current), total=\(total)")
       progressed.fulfill()
 
     } onExecute: { response in

@@ -43,15 +43,17 @@ public actor URLSessionJobManager {
     ) {
       guard let owner else { return }
 
-      logger.trace("[\(task.taskIdentifier)] Download progress update")
+      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Download progress update") }
 
       queueTask {
         guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
-          logger.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          logger.jobTrace {
+            $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          }
           return
         }
 
-        logger.debug("[\(task.taskIdentifier)] Reporting progress to job handler")
+        logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
 
         try await taskJobInfo.progress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
       }
@@ -66,15 +68,17 @@ public actor URLSessionJobManager {
     ) {
       guard let owner else { return }
 
-      logger.trace("[\(task.taskIdentifier)] Upload progress update")
+      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Upload progress update") }
 
       queueTask {
         guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
-          logger.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          logger.jobTrace {
+            $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          }
           return
         }
 
-        logger.debug("[\(task.taskIdentifier)] Reporting progress to job handler")
+        logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
 
         try await taskJobInfo.progress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
       }
@@ -87,7 +91,7 @@ public actor URLSessionJobManager {
     ) {
       guard let owner else { return }
 
-      logger.trace("[\(task.taskIdentifier)] Download finished")
+      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Download finished") }
 
       let result: Result<URL, Swift.Error>
       do {
@@ -110,7 +114,9 @@ public actor URLSessionJobManager {
 
       queueTask {
         guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
-          logger.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          logger.jobTrace {
+            $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          }
           return
         }
 
@@ -120,12 +126,12 @@ public actor URLSessionJobManager {
         }
 
         do {
-          logger.trace("[\(task.taskIdentifier)] Reporting url to job")
+          logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Reporting url to job") }
 
           await downloadTaskJobInfo.save(url: try result.get())
         }
         catch {
-          logger.trace("[\(task.taskIdentifier)] Reporting copy failure to job")
+          logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Reporting copy failure to job") }
 
           await downloadTaskJobInfo.future.fulfill(throwing: error)
         }
@@ -139,16 +145,18 @@ public actor URLSessionJobManager {
         logger.error("[\(task.taskIdentifier)] Task failed: error=\(error, privacy: .public)")
       }
       else {
-        logger.trace("[\(task.taskIdentifier)] Task completed successfully")
+        logger.debug("[\(task.taskIdentifier)] Task completed successfully")
       }
 
       queueTask {
         guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
-          logger.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          logger.jobTrace {
+            $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          }
           return
         }
 
-        logger.trace("[\(task.taskIdentifier)] Fulfilling job")
+        logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Fulfilling job") }
 
         await taskJobInfo.finish(response: task.response as? HTTPURLResponse, error: error)
       }
@@ -291,7 +299,7 @@ public actor URLSessionJobManager {
       fatalError("No current job key")
     }
 
-    logger.trace("[\(jobKey)] Registering download: request=\(request)")
+    logger.jobTrace { $0.trace("[\(jobKey)] Registering download: request=\(request)") }
 
     let taskJobInfo = try await taskJobInfoCache.register(for: jobKey) {
 
@@ -314,7 +322,7 @@ public actor URLSessionJobManager {
 
     } as! DownloadTaskJobInfo
 
-    logger.debug("[\(jobKey)] Waiting on download")
+    logger.jobTrace { $0.debug("[\(jobKey)] Waiting on download") }
 
     return try await withTaskCancellationHandler {
       try await taskJobInfo.future.get()
@@ -333,7 +341,7 @@ public actor URLSessionJobManager {
       fatalError("No current job key")
     }
 
-    logger.trace("[\(jobKey)] Registering upload: request=\(request)")
+    logger.jobTrace { $0.trace("[\(jobKey)] Registering upload: request=\(request)") }
 
     let taskJobInfo = try await taskJobInfoCache.register(for: jobKey) {
 
@@ -356,7 +364,7 @@ public actor URLSessionJobManager {
 
     } as! UploadTaskJobInfo
 
-    logger.debug("[\(jobKey)] Waiting on upload")
+    logger.jobTrace { $0.debug("[\(jobKey)] Waiting on upload") }
 
     return try await withTaskCancellationHandler {
       try await taskJobInfo.future.get()

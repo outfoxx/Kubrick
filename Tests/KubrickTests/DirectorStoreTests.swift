@@ -14,7 +14,7 @@ import XCTest
 
 class DirectorStoreTests: XCTestCase {
 
-  func test_QuerResultBySubmission() async throws {
+  func test_QueryResultBySubmission() async throws {
 
     struct MainJob: SubmittableJob, Codable {
       func execute() async {

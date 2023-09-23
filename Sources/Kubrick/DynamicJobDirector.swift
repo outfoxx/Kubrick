@@ -9,6 +9,10 @@
 //
 
 import Foundation
+import OSLog
+
+
+private let logger = Logger.for(category: "DynamicJobs")
 
 
 public protocol DynamicJobDirector {
@@ -28,14 +32,22 @@ struct CurrentDynamicJobDirector: DynamicJobDirector {
   let parentJobKey: JobKey
 
   func run<DynamicJob: Job>(job: DynamicJob) async throws -> DynamicJob.Value {
-    try await director.resolve(job, submission: parentJobKey.submission).result.get()
+
+    logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
+
+    return try await director.resolve(job, submission: parentJobKey.submission).result.get()
   }
 
   func run<DynamicJob: Job>(job: DynamicJob) async throws where DynamicJob.Value == NoValue {
+
+    logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
+
     _ = try await director.resolve(job, submission: parentJobKey.submission)
   }
 
   func result<DynamicJob: Job>(for job: DynamicJob) async -> Result<DynamicJob.Value, Error> {
+
+    logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
 
     let result: JobResult<DynamicJob.Value>
     do {
@@ -54,6 +66,8 @@ struct CurrentDynamicJobDirector: DynamicJobDirector {
   }
 
   func result<DynamicJob: Job>(for job: DynamicJob) async -> Result<Void, Error> where DynamicJob.Value == NoValue {
+
+    logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
 
     let result: JobResult<DynamicJob.Value>
     do {

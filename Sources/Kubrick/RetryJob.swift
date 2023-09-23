@@ -109,7 +109,7 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
         attempt += 1
 
-        logger.warning("[\(jobKey)] Failed, retrying: attempt=\(attempt)")
+        logger.jobTrace { $0.warning("[\(jobKey)] Failed, retrying: attempt=\(attempt)") }
 
         try await director.unresolve(jobKey: jobKey)
       }

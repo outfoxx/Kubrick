@@ -17,9 +17,7 @@ public struct JobEnvironmentValue<Value> {
   let keyPath: KeyPath<JobEnvironment, Value>
 
   public var wrappedValue: Value {
-    get {
-      JobEnvironment.current[keyPath: keyPath]
-    }
+    get { JobEnvironment.current[keyPath: keyPath] }
   }
 
   public init(_ keyPath: KeyPath<JobEnvironment, Value>) {

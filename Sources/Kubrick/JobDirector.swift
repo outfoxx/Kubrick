@@ -67,7 +67,7 @@ public actor JobDirector: Identifiable {
         try await self.submit(job, id: id, expiration: expiration)
       }
       catch {
-        logger.error("Submission failed: error=\(error, privacy: .public)")
+        logger.error("[\(id)] Submission failed: error=\(error, privacy: .public)")
       }
     }
   }
@@ -99,7 +99,7 @@ public actor JobDirector: Identifiable {
 
     guard try await store.saveJob(job, id: id, expiration: expiration) else {
 
-      logger.info("[\(id)] Skipping proccessing of duplicate job")
+      logger.jobTrace { $0.info("[\(id)] Skipping proccessing of duplicate job") }
 
       return
     }
@@ -113,11 +113,11 @@ public actor JobDirector: Identifiable {
 
     do {
 
-      logger.debug("[\(jobKey)] Fingerprint: job-type=\(type(of: job))")
+      logger.jobTrace { $0.debug("[\(jobKey)] Fingerprint: job-type=\(type(of: job))") }
 
       let result = try await persist(job: job, key: jobKey, inputResults: inputResults)
 
-      logger.trace("[\(jobKey)] Resolved, returning result")
+      logger.jobTrace { $0.trace("[\(jobKey)] Resolved, returning result") }
 
       return (jobKey, result)
     }
@@ -136,7 +136,7 @@ public actor JobDirector: Identifiable {
 
     try await Task.sleep(until: expiration)
 
-    logger.debug("[\(submission)] Removing completed job")
+    logger.jobTrace { $0.debug("[\(submission)] Removing completed job") }
 
     try await removeJob(jobKey: jobKey)
 
@@ -146,7 +146,8 @@ public actor JobDirector: Identifiable {
   }
 
   private func resolveInputs(job: some Job, submission: JobID) async throws -> ResolvedInputs {
-    logger.trace("Resolving inputs: job-type=\(type(of: job))")
+
+    logger.jobTrace { $0.trace("Resolving inputs: job-type=\(type(of: job))") }
 
     @Sendable func resolve(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {
 
@@ -169,7 +170,16 @@ public actor JobDirector: Identifiable {
     return try await withThrowingTaskGroup(of: ResolvedInput.self) { group in
 
       for (idx, inputDescriptor) in job.inputDescriptors.enumerated() {
-        logger.trace("Resolving binding \(idx): job-type=\(type(of: job)), value-type=\(inputDescriptor.reportType)")
+        
+        logger.jobTrace {
+          $0.trace(
+            """
+            [\(submission)] Resolving binding \(idx): \
+            job-type=\(type(of: job)), \
+            value-type=\(inputDescriptor.reportType)
+            """
+          )
+        }
 
         group.addTask {
           try await resolve(inputDescriptor)
@@ -219,15 +229,15 @@ public actor JobDirector: Identifiable {
     inputResults: JobInputResults
   ) async throws -> JobResult<J.Value> {
 
-    logger.trace("[\(jobKey)] Registering state")
+    logger.jobTrace { $0.trace("[\(jobKey)] Registering state") }
 
     let serializedState = try await resultState.register(for: jobKey) {
 
-      logger.trace("[\(jobKey)] Initializing state")
+      logger.jobTrace { $0.trace("[\(jobKey)] Initializing state") }
 
       let result = try await job.execute(as: jobKey, with: inputResults, for: self)
 
-      logger.trace("[\(jobKey)] Serializing state")
+      logger.jobTrace { $0.trace("[\(jobKey)] Serializing state") }
 
       return try CBOREncoder.deterministic.encode(ResultState(result: result))
     }
