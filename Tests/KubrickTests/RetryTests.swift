@@ -109,13 +109,10 @@ class RetryTests: XCTestCase {
       }
 
       func execute() async throws -> Int {
-        print("1️⃣ Incrementing")
         let count = await counter.increment()
         if count < 4 {
-          print("💥 Low Count")
           throw TestError.lowCount
         }
-        print("👍 Correct Count")
         return count
       }
     }
