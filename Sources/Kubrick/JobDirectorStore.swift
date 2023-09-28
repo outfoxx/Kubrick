@@ -35,6 +35,10 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
     var data: Data
     var expiration: Date
 
+    init(id: JobID, type: String, data: Data, expiration: Date) {
+      self.init(id: id.uuid, type: type, data: data, expiration: expiration)
+    }
+
     init(id: UUID, type: String, data: Data, expiration: Date) {
       self.id = id
       self.type = type
@@ -57,7 +61,11 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
     }
 
     static func filter(id: JobID) -> QueryInterfaceRequest<Self> {
-      return filter(Columns.id == id.uuid)
+      filter(id: id.uuid)
+    }
+
+    static func filter(id: UUID) -> QueryInterfaceRequest<Self> {
+      return filter(Columns.id == id)
     }
 
   }
@@ -72,33 +80,48 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
       case result
     }
 
-    var jobKey: JobKey
+    var submission: UUID
+    var fingerprint: Data
     var result: Data
 
+    var jobKey: JobKey { JobKey(submission: JobID(uuid: submission), fingerprint: fingerprint) }
+
     init(jobKey: JobKey, result: Data) {
-      self.jobKey = jobKey
+      self.init(submission: jobKey.submission.uuid, fingerprint: jobKey.fingerprint, result: result)
+    }
+
+    init(submission: UUID, fingerprint: Data, result: Data) {
+      self.submission = submission
+      self.fingerprint = fingerprint
       self.result = result
     }
 
     init(row: Row) throws {
-      let submission: UUID = row[Columns.submission]
-      let fingerprint: Data = row[Columns.fingerprint]
-      jobKey = JobKey(submission: .init(uuid: submission), fingerprint: fingerprint)
-      result = row[Columns.result]
+      self.submission = row[Columns.submission]
+      self.fingerprint = row[Columns.fingerprint]
+      self.result = row[Columns.result]
     }
 
     func encode(to container: inout PersistenceContainer) throws {
-      container[Columns.submission] = jobKey.submission.uuid
-      container[Columns.fingerprint] = jobKey.fingerprint
+      container[Columns.submission] = submission
+      container[Columns.fingerprint] = fingerprint
       container[Columns.result] = result
     }
 
     static func filter(submission: JobID) -> QueryInterfaceRequest<Self> {
-      return filter(Columns.submission == submission.uuid)
+      return filter(submission: submission.uuid)
     }
 
     static func filter(jobKey: JobKey) -> QueryInterfaceRequest<Self> {
-      return filter(Columns.submission == jobKey.submission.uuid && Columns.fingerprint == jobKey.fingerprint)
+      return filter(submission: jobKey.submission.uuid, fingerprint: jobKey.fingerprint)
+    }
+
+    static func filter(submission: UUID) -> QueryInterfaceRequest<Self> {
+      return filter(Columns.submission == submission)
+    }
+
+    static func filter(submission: UUID, fingerprint: Data) -> QueryInterfaceRequest<Self> {
+      return filter(Columns.submission == submission && Columns.fingerprint == fingerprint)
     }
 
   }
@@ -179,8 +202,8 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
   func value(forKey key: Key) async throws -> Data? {
     try await dbQueue.read { db in
       let entry = try JobResultEntry.fetchOne(db, key: [
-        JobResultEntry.Columns.submission.rawValue: key.submission.description.databaseValue,
-        JobResultEntry.Columns.fingerprint.rawValue: key.fingerprint.databaseValue,
+        JobResultEntry.Columns.submission.rawValue: key.submission.uuid,
+        JobResultEntry.Columns.fingerprint.rawValue: key.fingerprint,
       ])
       return entry?.result
     }
@@ -196,8 +219,8 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
   func removeValue(forKey key: JobKey) async throws {
     _ = try await dbQueue.write { db in
       try JobResultEntry.deleteOne(db, key: [
-        JobResultEntry.Columns.submission.rawValue: key.submission.description.databaseValue,
-        JobResultEntry.Columns.fingerprint.rawValue: key.fingerprint.databaseValue,
+        JobResultEntry.Columns.submission.rawValue: key.submission.uuid,
+        JobResultEntry.Columns.fingerprint.rawValue: key.fingerprint,
       ])
     }
   }
@@ -230,7 +253,7 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
     migrator.registerMigration("initial") { db in
 
       try db.create(table: SubmittedJobEntry.databaseTableName) { td in
-        td.column(SubmittedJobEntry.Columns.id.rawValue, .text)
+        td.column(SubmittedJobEntry.Columns.id.rawValue, .blob)
         td.column(SubmittedJobEntry.Columns.type.rawValue, .text)
         td.column(SubmittedJobEntry.Columns.data.rawValue, .blob)
         td.column(SubmittedJobEntry.Columns.expiration.rawValue, .datetime)
@@ -247,6 +270,7 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
         ])
         td.foreignKey([JobResultEntry.Columns.submission.rawValue],
                       references: SubmittedJobEntry.databaseTableName,
+                      columns: [SubmittedJobEntry.Columns.id.rawValue],
                       onDelete: .cascade,
                       onUpdate: .cascade)
       }

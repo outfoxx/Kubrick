@@ -25,3 +25,15 @@ public protocol Job<Value> {
   ) async throws -> JobResult<Value>
 
 }
+
+
+public extension Job {
+
+  var inputDescriptors: [any JobInputDescriptor] {
+    let mirror = Mirror(reflecting: self)
+    return mirror.children.compactMap { (_, property) in
+      property as? any JobInputDescriptor
+    }
+  }
+
+}

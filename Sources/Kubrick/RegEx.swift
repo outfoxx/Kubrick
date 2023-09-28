@@ -21,9 +21,12 @@ extension NSRegularExpression {
 }
 
 extension NSRegularExpression {
-  func matches(_ string: String, groupNames: Set<String>) -> [String: Substring]? {
+  func matches(_ string: String, groupNames: Set<String> = []) -> [String: Substring]? {
     let range = NSRange(location: 0, length: string.count)
-    guard let match = firstMatch(in: string, options: [], range: range) else {
+    guard
+      let match = firstMatch(in: string, options: [], range: range),
+      match.range == range
+    else {
       return nil
     }
     let groups = groupNames.map { ($0, match.range(withName: $0)) }.map { key, range in

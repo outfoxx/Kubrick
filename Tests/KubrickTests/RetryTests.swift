@@ -83,6 +83,7 @@ class RetryTests: XCTestCase {
     ])
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    try await director.start()
 
     let executed = expectation(description: "MainJob executed")
 
@@ -153,6 +154,7 @@ class RetryTests: XCTestCase {
     ])
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    try await director.start()
 
     let executed = expectation(description: "MainJob executed")
 
@@ -206,6 +208,7 @@ class RetryTests: XCTestCase {
     ])
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    try await director.start()
 
     let executed = expectation(description: "MainJob executed")
 

@@ -20,17 +20,27 @@ private let logger = Logger.for(category: "JobDirector")
 
 public actor JobDirector: Identifiable {
 
-  public typealias ID = UniqueID
+  public typealias ID = JobDirectorID
 
   public enum Error: Swift.Error {
     case unresolvedInputs
+  }
+
+  public enum State: String, CustomStringConvertible {
+    case created
+    case running
+    case stopped
+
+    public var description: String { rawValue }
   }
 
   struct ResultState<Value: JobValue>: Codable {
     var result: JobResult<Value>
   }
 
-  typealias ResolvedInput = (id: UUID, result: AnyJobResult, resultType: Any.Type, resultEncoded: Data)
+  typealias JobTaskFuture = Future<Void, Swift.Error>
+
+  typealias ResolvedInput = (id: UUID, result: AnyJobInputResult, resultType: Any.Type)
   typealias ResolvedInputs = [ResolvedInput]
 
   @TaskLocal static var currentJobKey: JobKey?
@@ -40,12 +50,14 @@ public actor JobDirector: Identifiable {
   public nonisolated let id: ID
   public nonisolated let injected: JobInjectValues
 
-  private let taskQueue = TaskQueue()
+  private var tasks: [UUID: JobTaskFuture] = [:]
+  private let tasksCancellation = CancellationSource()
   private let resultState: RegisterCache<JobKey, Data>
   private let store: JobDirectorStore
+  private var state: State
 
   public init(
-    id: ID = .generate(),
+    id: JobDirectorID = .generate(),
     directory: URL,
     typeResolver: SubmittableJobTypeResolver
   ) throws {
@@ -59,10 +71,11 @@ public actor JobDirector: Identifiable {
     self.store = store
     self.injected = JobInjectValues()
     self.resultState = RegisterCache(store: store)
+    self.state = .created
   }
 
   public nonisolated func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) {
-    taskQueue.addTask {
+    Task.detached {
       do {
         try await self.submit(job, id: id, expiration: expiration)
       }
@@ -72,23 +85,67 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  public func reload() async throws -> Int {
+  @discardableResult
+  public func start() async throws -> Int {
 
-    let jobs = try await store.loadJobs()
+    state = .running
 
-    for (job, id, expiration) in jobs {
+    do {
 
-      taskQueue.addTask {
+      let jobs = try await store.loadJobs()
 
-        try await self.process(job, submission: id, expiration: expiration)
+      for (job, id, expiration) in jobs {
+
+        queueTask {
+          await self.process(job, submission: id, expiration: expiration)
+        }
       }
-    }
 
-    return jobs.count
+      return jobs.count
+
+    }
+    catch {
+
+      logger.error("Start failed: error=\(error, privacy: .public)")
+
+      state = .stopped
+
+      throw error
+    }
   }
 
-  public func waitForCompletionOfCurrentJobs(seconds: TimeInterval) async throws {
-    return try await taskQueue.wait(forNanoseconds: UInt64(seconds * 1_000_000_000))
+  public func stop(completionWaitTimeout seconds: TimeInterval? = nil) async throws {
+
+    state = .stopped
+
+    tasksCancellation.cancel()
+
+    try? await waitForCompletionOfCurrentJobs(timeout: seconds ?? 1_000_000)
+
+    tasks.removeAll()
+  }
+
+  public func waitForCompletionOfCurrentJobs(timeout seconds: TimeInterval) async throws {
+    await withThrowingTaskGroup(of: Void.self) { group in
+
+      group.addTask {
+        _ = await Future.allSettled(Array(self.tasks.values)).get()
+      }
+
+      group.addTask {
+        try await Task.sleep(seconds: seconds)
+        throw CancellationError()
+      }
+
+      do {
+        for try await _ in group {
+          group.cancelAll()
+        }
+      }
+      catch {
+        group.cancelAll()
+      }
+    }
   }
 
   public var submittedJobCount: Int {
@@ -97,6 +154,11 @@ public actor JobDirector: Identifiable {
 
   func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) async throws {
 
+    guard state == .running else {
+      logger.error("Job submitted in '\(self.state)' state")
+      return
+    }
+
     guard try await store.saveJob(job, id: id, expiration: expiration) else {
 
       logger.jobTrace { $0.info("[\(id)] Skipping proccessing of duplicate job") }
@@ -104,10 +166,13 @@ public actor JobDirector: Identifiable {
       return
     }
 
-    try await process(job, submission: id, expiration: expiration)
+    await process(job, submission: id, expiration: expiration)
   }
 
-  func resolve<J: Job>(_ job: J, submission: JobID) async throws -> (jobKey: JobKey, result: JobResult<J.Value>) {
+  func resolve<J: Job>(
+    _ job: J,
+    submission: JobID
+  ) async throws -> (jobKey: JobKey, result: JobResult<J.Value>) {
 
     let (jobKey, inputResults) = try await prepare(job: job, submission: submission)
 
@@ -130,18 +195,38 @@ public actor JobDirector: Identifiable {
     try await resultState.deregister(for: jobKey)
   }
 
-  private func process<J: SubmittableJob>(_ job: J, submission: JobID, expiration: Date) async throws {
+  func runAs(jobKey: JobKey, operation: () async throws -> Void) async rethrows {
+    try await Self.$currentJobDirector.withValue(self) {
+      try await Self.$currentJobKey.withValue(jobKey) {
+        try await operation()
+      }
+    }
+  }
 
-    let (jobKey, result) = try await resolve(job, submission: submission)
+  private func process<J: SubmittableJob>(_ job: J, submission: JobID, expiration: Date) async {
 
-    try await Task.sleep(until: expiration)
+    do {
+      let (jobKey, result) = try await resolve(job, submission: submission)
 
-    logger.jobTrace { $0.debug("[\(submission)] Removing completed job") }
+      if case .failure(let error) = result {
+        logger.error("[\(submission)] Submission processing failed: error=\(error, privacy: .public)")
+      }
 
-    try await removeJob(jobKey: jobKey)
+      try? await Task.sleep(until: expiration)
 
-    if case .failure(let error) = result {
-      logger.error("[\(submission)] Submission processing failed: error=\(error, privacy: .public)")
+      logger.jobTrace { $0.debug("[\(submission)] Removing completed job") }
+
+      await removeJob(jobKey: jobKey)
+    }
+    catch is CancellationError {
+
+      logger.jobTrace { $0.debug("[\(submission)] Removing cancelled job") }
+
+      try? await store.removeJob(for: submission)
+    }
+    catch {
+
+      logger.error("[\(submission)] Unexpected submission processing failure: error=\(error, privacy: .public)")
     }
   }
 
@@ -149,22 +234,9 @@ public actor JobDirector: Identifiable {
 
     logger.jobTrace { $0.trace("Resolving inputs: job-type=\(type(of: job))") }
 
-    @Sendable func resolve(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {
-
-      let resolved = try await inputDescriptor.resolve(for: self, submission: submission)
-
-      let result: AnyJobResult
-      switch resolved.result {
-      case .success(let value):
-        result = .success(value)
-
-      case .failure(let error):
-        result = .failure(error)
-      }
-
-      let data = try CBOREncoder.deterministic.encode(resolved.result)
-
-      return (resolved.id, result, inputDescriptor.reportType, data)
+    let unbound = job.inputDescriptors.filter(\.isUnbound)
+    if !unbound.isEmpty {
+      throw JobError.unboundInputs(jobType: type(of: job), inputTypes: unbound.map { $0.reportType })
     }
 
     return try await withThrowingTaskGroup(of: ResolvedInput.self) { group in
@@ -174,7 +246,7 @@ public actor JobDirector: Identifiable {
         logger.jobTrace {
           $0.trace(
             """
-            [\(submission)] Resolving binding \(idx): \
+            [\(submission)] Resolving input \(idx): \
             job-type=\(type(of: job)), \
             value-type=\(inputDescriptor.reportType)
             """
@@ -188,8 +260,20 @@ public actor JobDirector: Identifiable {
 
       var resolved: ResolvedInputs = []
       for try await result in group {
-        
+
         if result.result.isFailure {
+
+          logger.jobTrace {
+            $0.trace(
+              """
+              [\(submission)] Input resolve failed: \
+              job-type=\(type(of: job)), \
+              value-type=\(result.resultType), \
+              error=\(String(describing: result))
+              """
+            )
+          }
+
           group.cancelAll()
         }
 
@@ -198,6 +282,22 @@ public actor JobDirector: Identifiable {
 
       return resolved
     }
+
+    @Sendable func resolve(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {
+
+      let resolved = try await inputDescriptor.resolve(for: self, submission: submission)
+
+      let result: AnyJobInputResult
+      switch resolved.result {
+      case .success(let value):
+        result = .success(value)
+
+      case .failure(let error):
+        result = .failure(error)
+      }
+
+      return (resolved.id, result, inputDescriptor.reportType)
+    }
   }
 
   private func fingerprint(job: some Job, resolved: ResolvedInputs, submission: JobID) throws -> JobKey {
@@ -205,9 +305,14 @@ public actor JobDirector: Identifiable {
     var inputHasher = SHA256()
     inputHasher.update(type: type(of: job))
 
-    for (_, _, type, data) in resolved {
+    for (_, result, type) in resolved {
       inputHasher.update(type: type)
-      inputHasher.update(data: data)
+      switch result {
+      case .success(let value):
+        try inputHasher.update(value: value)
+      case .failure(let error):
+        try inputHasher.update(value: ErrorBox(error))
+      }
     }
 
     return JobKey(submission: submission, fingerprint: inputHasher.finalized())
@@ -245,13 +350,28 @@ public actor JobDirector: Identifiable {
     return try CBORDecoder.default.decode(ResultState<J.Value>.self, from: serializedState).result
   }
 
-  private func removeJob(jobKey: JobKey) async throws {
-    
-    async let deregister: Void? = try await resultState.deregister(for: jobKey)
-    async let remove: Void? = try store.removeJob(for: jobKey.submission)
+  private func removeJob(jobKey: JobKey) async {
+    do {
+      async let deregister: Void? = try await resultState.deregister(for: jobKey)
+      async let remove: Void? = try store.removeJob(for: jobKey.submission)
 
-    try await deregister
-    try await remove
+      try await deregister
+      try await remove
+    }
+    catch {
+      logger.error("[\(jobKey.submission)] Failed to remove job: error=\(error, privacy: .public)")
+    }
+  }
+
+  private func queueTask(operation: @Sendable @escaping () async -> Void) {
+    let id = UUID()
+    tasks[id] = Task.tracked(cancellationSource: tasksCancellation, operation: operation) {
+      await self.removeTask(for: id)
+    }
+  }
+
+  private func removeTask(for id: UUID) {
+    tasks.removeValue(forKey: id)
   }
 
   private static func storeLocation(id: ID, directory: URL) -> URL {

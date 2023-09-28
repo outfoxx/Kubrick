@@ -27,15 +27,16 @@ public extension JobID {
 
     var name = Data()
 
-    mutating func update<Value: Codable>(value: Value) throws -> Self {
+    public func update<Value: Encodable>(value: Value) throws -> Self {
+      var name = name
       name.append(try CBOREncoder.deterministic.encode(value))
-      return self
+      return Builder(name: name)
     }
 
-    func build() -> JobID {
+    public func build() -> JobID {
       return JobID(uuid: UUID(namespace: Self.uuidNamespace, name: name))
     }
-
+    
   }
 
 }

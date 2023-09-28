@@ -24,7 +24,7 @@ public actor URLSessionJobManager {
     case downloadedFileMissing
   }
 
-  public typealias Progress = (_ chunkBytes: Int, _ currentBytes: Int, _ totalBytes: Int) async throws -> Void
+  public typealias Progress = (_ progressedBytes: Int, _ transferredBytes: Int, _ totalBytes: Int) async -> Void
 
   public class Delegate: NSObject, URLSessionDownloadDelegate {
 
@@ -43,10 +43,10 @@ public actor URLSessionJobManager {
     ) {
       guard let owner else { return }
 
-      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Download progress update") }
+      logger.debug("[\(task.taskIdentifier)] Download progress update")
 
       queueTask {
-        guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
+        guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
           }
@@ -55,7 +55,9 @@ public actor URLSessionJobManager {
 
         logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
 
-        try await taskJobInfo.progress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
+        await owner.director.runAs(jobKey: jobKey) {
+          await taskJobInfo.progress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
+        }
       }
     }
 
@@ -68,10 +70,10 @@ public actor URLSessionJobManager {
     ) {
       guard let owner else { return }
 
-      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Upload progress update") }
+      logger.debug("[\(task.taskIdentifier)] Upload progress update")
 
       queueTask {
-        guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
+        guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
           }
@@ -80,7 +82,9 @@ public actor URLSessionJobManager {
 
         logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
 
-        try await taskJobInfo.progress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
+        await owner.director.runAs(jobKey: jobKey) {
+          await taskJobInfo.progress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
+        }
       }
     }
 
@@ -91,7 +95,7 @@ public actor URLSessionJobManager {
     ) {
       guard let owner else { return }
 
-      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Download finished") }
+      logger.debug("[\(task.taskIdentifier)] Download finished")
 
       let result: Result<URL, Swift.Error>
       do {
@@ -113,7 +117,7 @@ public actor URLSessionJobManager {
       }
 
       queueTask {
-        guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
+        guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
           }
@@ -149,7 +153,7 @@ public actor URLSessionJobManager {
       }
 
       queueTask {
-        guard let taskJobInfo = try await owner.findTaskJobInfo(task: task) else {
+        guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
           }
@@ -314,7 +318,7 @@ public actor URLSessionJobManager {
       else {
         logger.info("[\(jobKey)] Starting download task")
         downloadTask = self.urlSession.downloadTask(with: request)
-        downloadTask.taskDescription = taskJobId(directorId: self.director.id, jobKey: jobKey)
+        downloadTask.taskDescription = ExternalJobKey(directorId: self.director.id, jobKey: jobKey).value
         downloadTask.resume()
       }
 
@@ -323,6 +327,10 @@ public actor URLSessionJobManager {
     } as! DownloadTaskJobInfo
 
     logger.jobTrace { $0.debug("[\(jobKey)] Waiting on download") }
+
+    if let error = taskJobInfo.task.error {
+      await taskJobInfo.finish(response: nil, error: error)
+    }
 
     return try await withTaskCancellationHandler {
       try await taskJobInfo.future.get()
@@ -356,7 +364,7 @@ public actor URLSessionJobManager {
       else {
         logger.info("[\(jobKey)] Starting upload task")
         uploadTask = self.urlSession.uploadTask(with: request, fromFile: file)
-        uploadTask.taskDescription = taskJobId(directorId: self.director.id, jobKey: jobKey)
+        uploadTask.taskDescription = ExternalJobKey(directorId: self.director.id, jobKey: jobKey).value
         uploadTask.resume()
       }
 
@@ -366,6 +374,10 @@ public actor URLSessionJobManager {
 
     logger.jobTrace { $0.debug("[\(jobKey)] Waiting on upload") }
 
+    if let error = taskJobInfo.task.error {
+      await taskJobInfo.finish(response: nil, error: error)
+    }
+
     return try await withTaskCancellationHandler {
       try await taskJobInfo.future.get()
     } onCancel: {
@@ -373,25 +385,26 @@ public actor URLSessionJobManager {
     }
   }
 
-  func findTaskJobInfo(task: URLSessionTask) async throws -> URLSessionTaskJobInfo? {
+  func findTaskJobInfo(task: URLSessionTask) async throws -> (JobKey, URLSessionTaskJobInfo)? {
     guard
       let taskDescription = task.taskDescription,
-      let (directorId, jobKey) = try parseTaskJobId(string: taskDescription),
-      directorId == director.id
+      let externalJobKey = ExternalJobKey(string: taskDescription),
+      externalJobKey.directorId == director.id
     else {
       return nil
     }
-    return try await taskJobInfoCache.valueWhenAvailable(for: jobKey)
+    return (externalJobKey.jobKey, try await taskJobInfoCache.valueWhenAvailable(for: externalJobKey.jobKey))
   }
 
   func findJobTask(jobKey: JobKey) async -> URLSessionTask? {
     let tasks = await urlSession.allTasks
-    let taskJobId = taskJobId(directorId: director.id, jobKey: jobKey)
+    let externalJobKey = ExternalJobKey(directorId: director.id, jobKey: jobKey)
     for task in tasks {
-      if task.taskDescription == taskJobId {
+      if task.taskDescription == externalJobKey.value {
         return task
       }
     }
+    print("Task not found\n", tasks.map(\.taskDescription))
     return nil
   }
 
@@ -420,7 +433,7 @@ public enum URLSessionJobError: Error {
 }
 
 
-public struct URLSessionJobResponse: Codable {
+public struct URLSessionJobResponse: Codable, JobHashable {
   var url: URL
   var headers: [String: [String]]
   var statusCode: Int
@@ -436,9 +449,9 @@ public struct URLSessionJobResponse: Codable {
 }
 
 
-public struct URLSessionDownloadJobResult: Codable {
-  var fileURL: URL
-  var response: URLSessionJobResponse
+public struct URLSessionDownloadJobResult: Codable, JobHashable {
+  public var fileURL: URL
+  public var response: URLSessionJobResponse
 }
 
 
@@ -556,7 +569,7 @@ public struct URLSessionUploadFileJob: ResultJob {
 }
 
 
-extension URLRequest: Codable {
+extension URLRequest: Codable, JobHashable {
 
   enum CodingKeys: String, CodingKey {
     case url
@@ -634,22 +647,3 @@ extension URLSession {
   }
 
 }
-
-
-func taskJobId(directorId: JobDirector.ID, jobKey: JobKey) -> String {
-  return "\(taskJobIdScheme)://\(directorId)#\(jobKey)"
-}
-
-func parseTaskJobId(string: String) throws -> (directorId: JobDirector.ID, jobKey: JobKey)? {
-  guard
-    let result = taskJobIdRegex.matches(string, groupNames: ["directorid", "jobkey"]),
-    let directorID = result["directorid"].flatMap({ JobID(string: String($0)) }),
-    let jobKey = result["jobkey"].flatMap({ JobKey(string: String($0)) })
-  else {
-    return nil
-  }
-  return (directorID, jobKey)
-}
-
-private let taskJobIdScheme = "director"
-private let taskJobIdRegex = NSRegularExpression(#"\#(taskJobIdScheme)://(?<directorid>[a-zA-Z0-9]+)#(?<jobkey>.*)"#)

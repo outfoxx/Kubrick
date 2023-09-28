@@ -11,7 +11,7 @@
 import Foundation
 
 
-public enum NoValue: Codable {
+public enum NoValue: Codable, JobHashable {
 
   case instance
 

@@ -29,3 +29,5 @@ extension UniqueID {
   }
 
 }
+
+extension UniqueID: JobHashable {}

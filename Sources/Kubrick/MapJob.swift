@@ -58,7 +58,7 @@ struct MapJob<SourceJob: Job, NewValue: JobValue>: Job {
 
 public extension Job {
 
-  func map<NewValue: JobValue>(transform: @escaping (Value) async throws -> NewValue) -> some Job<NewValue> {
+  func map<NewValue: JobValue>(_ transform: @escaping (Value) async throws -> NewValue) -> some Job<NewValue> {
     return MapJob(source: self, transform: transform)
   }
 
@@ -70,7 +70,7 @@ public extension Job {
 
 public extension ExecutableJob  {
 
-  func map<NewValue: JobValue>(transform: @escaping () async throws -> NewValue) -> some Job<NewValue> {
+  func map<NewValue: JobValue>(_ transform: @escaping () async throws -> NewValue) -> some Job<NewValue> {
     return MapJob(source: self) { _ in try await transform() }
   }
 

@@ -60,6 +60,7 @@ class DirectorTests: XCTestCase {
     ])
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    try await director.start()
 
     let executed = expectation(description: "MainJob executed")
     executed.expectedFulfillmentCount = 2
@@ -70,7 +71,7 @@ class DirectorTests: XCTestCase {
 
     try await director.submit(mainJob)
 
-    try await director.waitForCompletionOfCurrentJobs(seconds: 3)
+    try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -119,6 +120,7 @@ class DirectorTests: XCTestCase {
     ])
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    try await director.start()
 
     let executed = expectation(description: "MainJob executed")
     executed.expectedFulfillmentCount = 1
@@ -129,7 +131,7 @@ class DirectorTests: XCTestCase {
 
     try await director.submit(mainJob)
 
-    try await director.waitForCompletionOfCurrentJobs(seconds: 3)
+    try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -160,6 +162,7 @@ class DirectorTests: XCTestCase {
     ])
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    try await director.start()
 
     let executed = expectation(description: "MainJob executed")
     executed.expectedFulfillmentCount = 2
@@ -192,7 +195,7 @@ class DirectorTests: XCTestCase {
     try await submit()
     try await submit()
 
-    try await director.waitForCompletionOfCurrentJobs(seconds: 3)
+    try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -210,7 +213,7 @@ class DirectorTests: XCTestCase {
       MainJob.self
     ])
 
-    let directorID = JobDirector.ID(string: "1EjQHqaO86sbI65hHQ4KqW")!
+    let directorID = JobDirector.ID("1EjQHqaO86sbI65hHQ4KqW")!
 
     let director = try JobDirector(id: directorID,
                                    directory: FileManager.default.temporaryDirectory,
@@ -242,7 +245,7 @@ class DirectorTests: XCTestCase {
     try await submit()
     try await submit()
 
-    try await director.waitForCompletionOfCurrentJobs(seconds: 3)
+    try await director.waitForCompletionOfCurrentJobs(timeout: 3)
   }
 
 }

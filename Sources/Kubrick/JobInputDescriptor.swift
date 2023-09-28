@@ -11,25 +11,44 @@
 import Foundation
 
 
+public typealias JobInputResult<Value: JobHashable> = Result<Value, Error>
+public typealias AnyJobInputResult = Result<any JobHashable, Error>
+
 public protocol JobInputDescriptor {
   
-  associatedtype Value: Codable
+  associatedtype Value: JobHashable
+
+  var isUnbound: Bool { get }
 
   var reportType: Value.Type { get }
   
-  func resolve(for director: JobDirector, submission: JobID) async throws -> (id: UUID, result: JobResult<Value>)
+  func resolve(for director: JobDirector, submission: JobID) async throws -> (id: UUID, result: JobInputResult<Value>)
+
+}
+
+extension JobInputDescriptor {
+
+  public var isUnbound: Bool { false }
+
+  public var reportType: Value.Type { Value.self }
 
 }
 
 
-struct AdHocJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
+public struct AdHocJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
-  var id: UUID
-  var job: SourceJob
+  public var id: UUID
+  public var job: SourceJob
 
-  var reportType: SourceJob.Value.Type { SourceJob.Value.self }
+  public init(id: UUID, job: SourceJob) {
+    self.id = id
+    self.job = job
+  }
 
-  func resolve(for director: JobDirector, submission: JobID) async throws -> (id: UUID, result: JobResult<SourceJob.Value>) {
+  public func resolve(
+    for director: JobDirector,
+    submission: JobID
+  ) async throws -> (id: UUID, result: JobInputResult<SourceJob.Value>) {
     return (id, try await director.resolve(job, submission: submission).result)
   }
 }

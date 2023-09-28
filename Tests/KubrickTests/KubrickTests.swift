@@ -20,7 +20,7 @@ final class KubrickTests: XCTestCase {
 
   func interactive_test_Example() async throws {
 
-    let directorId = JobDirector.ID(string: "2SdMYYK0hxdGouMBjmAGid")!
+    let directorId = JobDirector.ID("2SdMYYK0hxdGouMBjmAGid")!
 
     let director = try JobDirector(id: directorId,
                                    directory: URL(fileURLWithPath: "/Users/kdubb/Downloads/KubrickTest"),
@@ -28,8 +28,8 @@ final class KubrickTests: XCTestCase {
 
     director.injected.provide(URLSessionJobManager(configuration: .background(withIdentifier: directorId.description),
                                                    director: director))
-    director.injected.provide(SimpleMessageCipherFactory(), forTypes: MessageCipherFactory.self)
-    director.injected.provide(SimpleMessageSignerFactory(), forTypes: MessageSignerFactory.self)
+    director.injected.provide(SimpleMessageCipherFactory(), forType: MessageCipherFactory.self)
+    director.injected.provide(SimpleMessageSignerFactory(), forType: MessageSignerFactory.self)
 
     let summary = MessageSummary(sender: .init(address: URL(string: "http://example.com")!, alias: "test"),
                                  attachments: [
@@ -38,11 +38,11 @@ final class KubrickTests: XCTestCase {
                                   "Slow": URL(string: "http://localhost:6789/files/slow")!,
                                  ])
 
-    if try await director.reload() > 0 {
+    if try await director.start() > 0 {
 
       print("📤 Jobs reloaded... waiting for completion of jobs")
 
-      try await director.waitForCompletionOfCurrentJobs(seconds: 30 * 60)
+      try await director.waitForCompletionOfCurrentJobs(timeout: 30 * 60)
 
     }
     else {
@@ -102,8 +102,9 @@ struct ProcessMessageJob: SubmittableJob {
     let saveDir = URL(fileURLWithPath: "/Users/kdubb/downloads/KubrickTest")
 
     for (key, url) in downloadedAttachments {
-      print("🗂️ Saving attachment file: \(key)")
       let targetFile = saveDir.appendingPathComponent(key).appendingPathExtension("data")
+      let urlSize = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize?.description
+      print("🗂️ Saving attachment '\(key)': file=\(targetFile), \(urlSize ?? "unknown")")
       try? FileManager.default.moveItem(at: url, to: targetFile)
     }
   }
@@ -197,7 +198,7 @@ struct ValidateMessage: ResultJob {
 }
 
 
-struct MessageSummary: Codable {
+struct MessageSummary: Codable, JobHashable {
 
   struct Encryption: Codable {
     var key: Data
@@ -217,7 +218,7 @@ struct MessageSummary: Codable {
 }
 
 
-struct EncryptionInfo: Hashable, Codable {
+struct EncryptionInfo: Codable, JobHashable {
   var key: SymmetricKey
   var cipher: MessageCipher
 
@@ -254,9 +255,9 @@ struct EncryptionInfo: Hashable, Codable {
 }
 
 
-struct ResolvedRoute: Hashable, Codable {
+struct ResolvedRoute: Codable, JobHashable {
 
-  struct Encryption: Hashable, Codable {
+  struct Encryption: Codable, JobHashable {
     var encryptionCertificate: SecCertificate
     var signingCertificate: SecCertificate
 
@@ -376,7 +377,7 @@ struct LocalEncryptionKey {
   var key: SecKey
 }
 
-struct SecKeyBox: Hashable, Codable {
+struct SecKeyBox: Codable, JobHashable {
   var key: SecKey
 
   init(key: SecKey) {
@@ -393,7 +394,7 @@ struct SecKeyBox: Hashable, Codable {
   }
 }
 
-struct KeyBox: Hashable, Codable {
+struct KeyBox: Codable, JobHashable {
   var key: SymmetricKey
 
   init(key: SymmetricKey) {

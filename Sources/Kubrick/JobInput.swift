@@ -12,7 +12,7 @@ import Foundation
 
 
 @propertyWrapper
-public struct JobInput<Value: Codable> {
+public struct JobInput<Value: JobHashable> {
 
   public var wrappedValue: Value {
     get { projectedValue.value }
@@ -34,25 +34,15 @@ public struct JobInput<Value: Codable> {
 
 extension JobInput: JobInputDescriptor {
 
+  public var isUnbound: Bool { projectedValue.isUnbound }
+
   public var reportType: Value.Type { Value.self }
 
   public func resolve(
     for director: JobDirector,
     submission: JobID
-  ) async throws -> (id: UUID, result: JobResult<Value>) {
+  ) async throws -> (id: UUID, result: JobInputResult<Value>) {
     return try await projectedValue.resolve(for: director, submission: submission)
-  }
-
-}
-
-
-public extension Job {
-
-  var inputDescriptors: [any JobInputDescriptor] {
-    let mirror = Mirror(reflecting: self)
-    return mirror.children.compactMap { (_, property) in
-      property as? any JobInputDescriptor
-    }
   }
 
 }

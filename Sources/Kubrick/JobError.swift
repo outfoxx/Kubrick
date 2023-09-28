@@ -23,4 +23,5 @@ public enum JobError: Error {
 
   case invariantViolation(InvariantViolation)
   case multipleInputsFailed([Error])
+  case unboundInputs(jobType: any Job.Type, inputTypes: [Any.Type])
 }

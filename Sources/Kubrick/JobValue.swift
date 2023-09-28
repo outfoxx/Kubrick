@@ -11,4 +11,4 @@
 import Foundation
 
 
-public typealias JobValue = Codable
+public typealias JobValue = JobHashable & Codable

@@ -11,7 +11,7 @@
 import Foundation
 
 
-public typealias JobInputResults = [UUID: AnyJobResult]
+public typealias JobInputResults = [UUID: AnyJobInputResult]
 
 
 extension JobInputResults {

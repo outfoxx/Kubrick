@@ -84,8 +84,9 @@ class URLSessionJobManagerTests: XCTestCase {
     let requestURL = serverURL.appendingPathComponent("test-file")
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
-
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+
+    try await director.start()
 
     let progressed = expectation(description: "Download progressed")
     progressed.assertForOverFulfill = false
@@ -164,6 +165,8 @@ class URLSessionJobManagerTests: XCTestCase {
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
+    try await director.start()
+
     let executed = expectation(description: "MainJob executed")
 
     let id = JobID()
@@ -220,6 +223,8 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+
+    try await director.start()
 
     let executed = expectation(description: "MainJob executed")
 
@@ -307,6 +312,8 @@ class URLSessionJobManagerTests: XCTestCase {
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
+    try await director.start()
+
     let progressed = expectation(description: "Upload progressed")
     progressed.assertForOverFulfill = false
 
@@ -388,6 +395,8 @@ class URLSessionJobManagerTests: XCTestCase {
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
+    try await director.start()
+
     let executed = expectation(description: "MainJob executed")
 
     let id = JobID()
@@ -453,6 +462,8 @@ class URLSessionJobManagerTests: XCTestCase {
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
+    try await director.start()
+
     let executed = expectation(description: "MainJob executed")
 
     let id = JobID()
@@ -472,23 +483,6 @@ class URLSessionJobManagerTests: XCTestCase {
     try await director.submit(mainJob, id: id)
 
     await fulfillment(of: [executed], timeout: 3)
-  }
-
-  func test_TaskTaskJobIdParsing() throws {
-    let directorId = JobDirector.ID()
-    var sha = SHA256()
-    sha.update(data: "test".data(using: .utf8)!)
-
-    let fp = sha.finalize().withUnsafeBytes { Data($0) }
-    let jobKey = JobKey(submission: JobID(), fingerprint: fp)
-
-    let jobTaskId = taskJobId(directorId: directorId, jobKey: jobKey)
-    print(jobTaskId)
-
-    let parsed = try parseTaskJobId(string: jobTaskId)
-
-    XCTAssertEqual(parsed?.directorId, directorId)
-    XCTAssertEqual(parsed?.jobKey, jobKey)
   }
 
 }
