@@ -41,8 +41,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/outfoxx/potentcodables.git",
       "state" : {
-        "revision" : "0c423eb5fdbbefffd36926430bf99f9f998c0cad",
-        "version" : "3.1.1"
+        "revision" : "583f1b04b89e36742255d05ef1d2e5961485811d",
+        "version" : "3.2.0"
       }
     },
     {
@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/outfoxx/sunday-swift.git",
       "state" : {
-        "revision" : "7f7df3039b02fca0f12635fb0c577ebe0b968042",
-        "version" : "1.0.0-beta.26"
+        "revision" : "307e6ca46f5ff3a54d9d7699599b4f9e4097bfcc",
+        "version" : "1.0.0-beta.27"
       }
     },
     {

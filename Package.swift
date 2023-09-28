@@ -17,12 +17,12 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/SwiftyLab/AsyncObjects.git", .upToNextMinor(from: "2.1.0")),
-    .package(url: "https://github.com/outfoxx/potentcodables.git", .upToNextMinor(from: "3.1.1")),
+    .package(url: "https://github.com/outfoxx/potentcodables.git", .upToNextMinor(from: "3.2.0")),
     .package(url: "https://github.com/groue/GRDB.swift.git", .upToNextMinor(from: "6.18.0")),
     .package(url: "https://github.com/kdubb/SwiftFriendlyId.git", .upToNextMinor(from: "1.3.1")),
 
     // TESTING DEPENDENCIES
-    .package(url: "https://github.com/outfoxx/sunday-swift.git", .upToNextMinor(from: "1.0.0-beta.26"))
+    .package(url: "https://github.com/outfoxx/sunday-swift.git", .upToNextMinor(from: "1.0.0-beta.27"))
   ],
   targets: [
     .target(
