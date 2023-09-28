@@ -120,12 +120,14 @@ public class JobInjectValues {
     set { self[JobInjectKey(tags: tags)] = newValue }
   }
 
-  public subscript<Dependency, Tag: RawRepresentable>(_ type: Dependency.Type, tags tags: [Tag]) -> Dependency where Tag.RawValue: CustomStringConvertible {
+  public subscript<Dependency, Tag: RawRepresentable>(_ type: Dependency.Type, tags tags: [Tag]) -> Dependency
+  where Tag.RawValue: CustomStringConvertible {
     get { self[JobInjectKey(tags: tags)] }
     set { self[JobInjectKey(tags: tags)] = newValue }
   }
 
-  public subscript<Dependency, Tag: RawRepresentable>(_ type: Dependency.Type, tags tags: Tag...) -> Dependency where Tag.RawValue: CustomStringConvertible {
+  public subscript<Dependency, Tag: RawRepresentable>(_ type: Dependency.Type, tags tags: Tag...) -> Dependency
+  where Tag.RawValue: CustomStringConvertible {
     get { self[JobInjectKey(tags: tags)] }
     set { self[JobInjectKey(tags: tags)] = newValue }
   }
@@ -136,7 +138,12 @@ public class JobInjectValues {
         fatalError("No value configured for injection key '\(key)'")
       }
       guard let value = rawValue as? Dependency else {
-        fatalError("Incorrect value configured for injection key '\(key)', expected '\(Dependency.self)' but found '\(type(of: rawValue))'")
+        fatalError(
+          """
+          Incorrect value configured for injection key '\(key)', \
+          expected '\(Dependency.self)' but found '\(type(of: rawValue))'
+          """
+        )
       }
       return value
     }

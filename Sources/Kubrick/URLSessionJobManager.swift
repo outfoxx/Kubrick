@@ -112,7 +112,12 @@ public actor URLSessionJobManager {
         result = .success(targetFile)
       }
       catch {
-        logger.error("[\(task.taskIdentifier)] Failed to move downlaoded file to temporary location: erorr=\(error, privacy: .public)")
+        logger.error(
+          """
+          [\(task.taskIdentifier)] Failed to move downlaoded file to temporary location: \
+          erorr=\(error, privacy: .public)
+          """
+        )
         result = .failure(error)
       }
 

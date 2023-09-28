@@ -22,7 +22,10 @@ public struct BatchJob<Key: JobValue & Hashable, ElementJobValue: JobValue>: Job
 
   let jobs: [UUID: (Key, JobElement)]
 
-  public init<S: Sequence<Key>>(_ keys: S, @JobBuilder<ElementJobValue> block: (S.Element) throws -> JobElement) rethrows {
+  public init<S: Sequence<Key>>(
+    _ keys: S,
+    @JobBuilder<ElementJobValue> block: (S.Element) throws -> JobElement
+  ) rethrows {
     self.jobs = Dictionary(uniqueKeysWithValues: try keys.map { (UUID(), ($0, try block($0))) })
   }
 
