@@ -22,12 +22,23 @@ public struct BatchJob<Key: JobValue & Hashable, ElementJobValue: JobValue>: Job
 
   let jobs: [UUID: (Key, JobElement)]
 
-  public init<S: Sequence<Key>>(_ keys: S, @JobBuilder<ElementJobValue> block: (S.Element) -> JobElement) {
-    self.jobs = Dictionary(uniqueKeysWithValues: keys.map { (UUID(), ($0, block($0))) })
+  public init<S: Sequence<Key>>(_ keys: S, @JobBuilder<ElementJobValue> block: (S.Element) throws -> JobElement) rethrows {
+    self.jobs = Dictionary(uniqueKeysWithValues: try keys.map { (UUID(), ($0, try block($0))) })
   }
 
-  public init<V, S: Sequence<(key: Key, value: V)>>(_ items: S, @JobBuilder<ElementJobValue> block: (Key, V) -> JobElement) {
-    self.jobs = Dictionary(uniqueKeysWithValues: items.map { k, v in (UUID(), (k, block(k, v))) })
+  public init<S: Sequence>(
+    _ items: S,
+    key keyPath: KeyPath<S.Element, Key>,
+    @JobBuilder<ElementJobValue> block: (S.Element) throws -> JobElement
+  ) rethrows {
+    self.jobs = Dictionary(uniqueKeysWithValues: try items.map { (UUID(), ($0[keyPath: keyPath], try block($0))) })
+  }
+
+  public init<V, S: Sequence<(key: Key, value: V)>>(
+    _ items: S,
+    @JobBuilder<ElementJobValue> block: (Key, V) throws -> JobElement
+  ) rethrows {
+    self.jobs = Dictionary(uniqueKeysWithValues: try items.map { k, v in (UUID(), (k, try block(k, v))) })
   }
 
   public var inputDescriptors: [any JobInputDescriptor] {
