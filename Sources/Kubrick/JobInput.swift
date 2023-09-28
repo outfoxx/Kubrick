@@ -16,7 +16,7 @@ public struct JobInput<Value: JobHashable> {
 
   public var wrappedValue: Value {
     get { projectedValue.value }
-    set { projectedValue.set(value: newValue) }
+    set { projectedValue.bind(value: newValue) }
   }
 
   public var projectedValue: JobBinding<Value>

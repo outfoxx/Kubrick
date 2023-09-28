@@ -148,19 +148,29 @@ public enum NSErrorCodingTransformer: ValueCodingTransformer {
 
 }
 
+extension JobResult {
 
-public extension AnyJobResult {
+  var wrapped: Result<Success?, Failure> {
+    switch self {
+    case .success(let value): return .success(value)
+    case .failure(let error): return .failure(error)
+    }
+  }
 
-  func valueResult<Value: JobValue>(_ type: Value.Type = Value.self) throws -> JobResult<Value> {
+}
+
+extension Result {
+
+  func unwrapNonFailed<Value: JobValue>(_ type: Value.Type = Value.self) throws -> Value {
     switch self {
     case .success(let value):
       guard let value = value as? Value else {
         throw JobError.invariantViolation(.inputResultInvalid)
       }
-      return .success(value)
+      return value
 
-    case .failure(let error):
-      return .failure(error)
+    case .failure:
+      throw JobError.invariantViolation(.executeInvokedWithFailedInput)
     }
   }
 

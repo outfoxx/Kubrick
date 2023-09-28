@@ -21,7 +21,7 @@ public protocol JobInputDescriptor {
   var isUnbound: Bool { get }
 
   var reportType: Value.Type { get }
-  
+
   func resolve(for director: JobDirector, submission: JobID) async throws -> (id: UUID, result: JobInputResult<Value>)
 
 }

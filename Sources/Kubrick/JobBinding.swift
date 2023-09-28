@@ -22,7 +22,7 @@ public struct JobBinding<Value: JobHashable> {
     case unbound
   }
 
-  private var state: State
+  var state: State
 
   public init() {
     self.state = .unbound
@@ -32,7 +32,7 @@ public struct JobBinding<Value: JobHashable> {
     self.state = .constant(UUID(), value)
   }
 
-  public mutating func set(value: Value) {
+  public mutating func bind(value: Value) {
     state = .constant(UUID(), value)
   }
 
@@ -40,9 +40,14 @@ public struct JobBinding<Value: JobHashable> {
     state = .job(UUID(), PassthroughJobResolver(job: job))
   }
 
-  public mutating func bind<WrappedValue: JobValue,SourceJob: Job<WrappedValue>>(job: SourceJob)
+  public mutating func bind<WrappedValue: JobValue, SourceJob: Job<WrappedValue>>(job: SourceJob?)
   where Value == Optional<WrappedValue> {
-    state = .job(UUID(), OptionalJobResolver(job: job))
+    if let job {
+      state = .job(UUID(), OptionalJobResolver(job: job))
+    }
+    else {
+      state = .constant(UUID(), nil)
+    }
   }
 
   public mutating func bind<WrappedValue: JobValue, SourceJob: Job<Optional<WrappedValue>>>(job: SourceJob?)
@@ -56,12 +61,6 @@ public struct JobBinding<Value: JobHashable> {
   }
 
   public mutating func bind<SourceJob: Job<Value>>(@JobBuilder<Value> builder: () throws -> SourceJob) rethrows {
-    bind(job: try builder())
-  }
-
-  public mutating func bind<WrappedValue: JobValue, SourceJob: Job<WrappedValue>>(
-    @JobBuilder<WrappedValue> builder: () throws -> SourceJob
-  ) rethrows where Value == Optional<WrappedValue> {
     bind(job: try builder())
   }
 
