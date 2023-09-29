@@ -54,7 +54,7 @@ public class EnvironmentTest: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: jobId)
+    await director.submit(mainJob, id: jobId)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -96,7 +96,7 @@ public class EnvironmentTest: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
+    await director.submit(mainJob, id: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -150,7 +150,7 @@ public class EnvironmentTest: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
+    await director.submit(mainJob, id: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }

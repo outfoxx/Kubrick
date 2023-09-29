@@ -36,6 +36,7 @@ extension Task where Success == Void, Failure == Never {
     operation: @Sendable @escaping () async throws -> FutureSuccess,
     onComplete: @Sendable @escaping () async -> Void = {}
   ) -> Future<FutureSuccess, Error> {
+    
     let future = Future<FutureSuccess, Error>()
 
     detached(priority: priority, cancellationSource: cancellationSource, file: file, function: function, line: line) {

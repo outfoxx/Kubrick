@@ -14,10 +14,8 @@ import Foundation
 public enum JobExecutionError: Error {
   
   public enum InvariantViolation {
-    case noCurrentInputs
     case inputResultMissing
     case inputResultInvalid
-    case inputFailureInvokedWithoutError
     case executeInvokedWithFailedInput
   }
 

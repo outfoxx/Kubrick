@@ -18,13 +18,16 @@ import PotentCBOR
 private let logger = Logger.for(category: "JobDirector")
 
 
+public enum JobDirectorError: Error {
+
+  case invalidDirectorState
+
+}
+
+
 public actor JobDirector: Identifiable {
 
   public typealias ID = JobDirectorID
-
-  public enum Error: Swift.Error {
-    case unresolvedInputs
-  }
 
   public enum State: String, CustomStringConvertible {
     case created
@@ -117,14 +120,18 @@ public actor JobDirector: Identifiable {
     self.state = .created
   }
 
-  public nonisolated func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) {
-    Task.detached {
-      do {
-        try await self.submit(job, id: id, expiration: expiration)
-      }
-      catch {
-        logger.error("[\(id)] Submission failed: error=\(error, privacy: .public)")
-      }
+  @discardableResult
+  public func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) async -> Bool {
+    do {
+
+      return try await self.storeAndProcess(job, id: id, expiration: expiration)
+      
+    }
+    catch {
+
+      logger.error("[\(id)] Submission failed: error=\(error, privacy: .public)")
+
+      return false
     }
   }
 
@@ -139,9 +146,7 @@ public actor JobDirector: Identifiable {
 
       for (job, id, expiration) in jobs {
 
-        queueTask {
-          await self.process(job, submission: id, expiration: expiration)
-        }
+        self.process(job, submission: id, expiration: expiration)
       }
 
       return jobs.count
@@ -203,23 +208,6 @@ public actor JobDirector: Identifiable {
     return try jobDecoder.decode(type, from: data)
   }
 
-  func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) async throws {
-
-    guard state == .running else {
-      logger.error("Job submitted in '\(self.state)' state")
-      return
-    }
-
-    guard try await store.saveJob(job, id: id, expiration: expiration) else {
-
-      logger.jobTrace { $0.info("[\(id)] Skipping proccessing of duplicate job") }
-
-      return
-    }
-
-    await process(job, submission: id, expiration: expiration)
-  }
-
   func resolve<J: Job>(
     _ job: J,
     submission: JobID
@@ -254,30 +242,52 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  private func process<J: SubmittableJob>(_ job: J, submission: JobID, expiration: Date) async {
+  private func storeAndProcess(_ job: some SubmittableJob, id: JobID, expiration: Date) async throws -> Bool {
 
-    do {
-      let (jobKey, result) = try await resolve(job, submission: submission)
+    guard state == .running else {
 
-      if case .failure(let error) = result {
-        logger.error("[\(submission)] Submission processing failed: error=\(error, privacy: .public)")
+      logger.error("Job submitted in '\(self.state)' state")
+
+      throw JobDirectorError.invalidDirectorState
+    }
+
+    guard try await store.saveJob(job, id: id, expiration: expiration) else {
+
+      logger.jobTrace { $0.info("[\(id)] Skipping proccessing of duplicate job") }
+
+      return false
+    }
+
+    self.process(job, submission: id, expiration: expiration)
+
+    return true
+  }
+
+  private func process(_ job: some SubmittableJob, submission: JobID, expiration: Date) {
+    jobTask { [self] in
+      do {
+        let (jobKey, result) = try await resolve(job, submission: submission)
+
+        if case .failure(let error) = result {
+          logger.error("[\(submission)] Job processing failed: error=\(error, privacy: .public)")
+        }
+
+        try? await Task.sleep(until: expiration)
+
+        logger.jobTrace { $0.debug("[\(submission)] Removing completed job") }
+
+        await removeJob(jobKey: jobKey)
       }
+      catch is CancellationError {
 
-      try? await Task.sleep(until: expiration)
+        logger.jobTrace { $0.debug("[\(submission)] Removing cancelled job") }
 
-      logger.jobTrace { $0.debug("[\(submission)] Removing completed job") }
+        try? await store.removeJob(for: submission)
+      }
+      catch {
 
-      await removeJob(jobKey: jobKey)
-    }
-    catch is CancellationError {
-
-      logger.jobTrace { $0.debug("[\(submission)] Removing cancelled job") }
-
-      try? await store.removeJob(for: submission)
-    }
-    catch {
-
-      logger.error("[\(submission)] Unexpected submission processing failure: error=\(error, privacy: .public)")
+        logger.error("[\(submission)] Unexpected processing failure: error=\(error, privacy: .public)")
+      }
     }
   }
 
@@ -293,7 +303,7 @@ public actor JobDirector: Identifiable {
     return try await withThrowingTaskGroup(of: ResolvedInput.self) { group in
 
       for (idx, inputDescriptor) in job.inputDescriptors.enumerated() {
-        
+
         logger.jobTrace {
           $0.trace(
             """
@@ -414,7 +424,7 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  private func queueTask(operation: @Sendable @escaping () async -> Void) {
+  private func jobTask(operation: @Sendable @escaping () async -> Void) {
     let id = UUID()
     tasks[id] = Task.tracked(cancellationSource: tasksCancellation, operation: operation) {
       await self.removeTask(for: id)
