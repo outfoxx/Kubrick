@@ -34,14 +34,14 @@ public struct CatchJob<SourceJob: Job>: Job {
   ) async -> JobResult<Value> {
 
     guard let inputResult = inputResults[source.id] else {
-      return .failure(JobError.invariantViolation(.inputResultMissing))
+      return .failure(JobExecutionError.invariantViolation(.inputResultMissing))
     }
 
     switch inputResult {
     case .success(let success):
       
       guard let inputValue = success as? Value else {
-        return .failure(JobError.invariantViolation(.inputResultInvalid))
+        return .failure(JobExecutionError.invariantViolation(.inputResultInvalid))
       }
 
       return .success(inputValue)

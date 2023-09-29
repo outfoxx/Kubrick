@@ -25,7 +25,7 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location, typeResolver: TypeNameJobTypeResolver(types: []))
+    let store = try JobDirectorStore(location: location)
 
     let id = JobID.generate()
     let fingerprint = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
@@ -52,7 +52,7 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location, typeResolver: TypeNameJobTypeResolver(types: []))
+    let store = try JobDirectorStore(location: location)
 
     let id = JobID.generate()
     let fingerprint = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
@@ -86,7 +86,7 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location, typeResolver: TypeNameJobTypeResolver(types: []))
+    let store = try JobDirectorStore(location: location)
 
     let id = JobID.generate()
     let fingerprint1 = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
@@ -145,7 +145,7 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location, typeResolver: TypeNameJobTypeResolver(types: []))
+    let store = try JobDirectorStore(location: location)
 
     let jobID = JobID()
     _ = try await store.saveJob(MainJob(), id: jobID, expiration: .now)
@@ -173,7 +173,7 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location, typeResolver: TypeNameJobTypeResolver(types: []))
+    let store = try JobDirectorStore(location: location)
 
     let jobID = JobID()
     _ = try await store.saveJob(MainJob(), id: jobID, expiration: .now)
@@ -195,6 +195,22 @@ class DirectorStoreTests: XCTestCase {
       let results = try await store.loadJobResults(for: jobID)
       XCTAssertEqual(results.count, 0)
     }
+  }
+
+}
+
+private extension JobDirectorStore {
+
+  convenience init(
+    location: URL,
+    jobTypeResolver: SubmittableJobTypeResolver = TypeNameTypeResolver(jobs: [], errors: []),
+    jobEncoder: any JobEncoder = CBOREncoder.deterministic,
+    jobDecoder: any JobDecoder = CBORDecoder.default
+  ) throws {
+    self.init(dbQueue: try Self.db(path: location.path),
+              jobTypeResolver: jobTypeResolver,
+              jobEncoder: jobEncoder,
+              jobDecoder: jobDecoder)
   }
 
 }

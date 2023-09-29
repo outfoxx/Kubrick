@@ -63,11 +63,11 @@ public struct BatchJob<Key: JobValue & Hashable, ElementJobValue: JobValue>: Job
         let (key, _) = element
 
         guard let inputResult = inputResults[id] else {
-          throw JobError.invariantViolation(.inputResultMissing)
+          throw JobExecutionError.invariantViolation(.inputResultMissing)
         }
 
         guard let inputValue = try inputResult.get() as? ElementJobValue else {
-          throw JobError.invariantViolation(.inputResultInvalid)
+          throw JobExecutionError.invariantViolation(.inputResultInvalid)
         }
 
         return (key, inputValue)

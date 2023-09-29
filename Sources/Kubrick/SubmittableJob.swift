@@ -10,7 +10,6 @@
 
 import Foundation
 import OSLog
-import PotentCBOR
 
 
 private let logger = Logger.for(category: "SubmittableJob")
@@ -20,9 +19,9 @@ public protocol SubmittableJob: Job where Value == NoValue {
 
   static var typeId: String { get }
 
-  init(data: Data) throws
+  init(from data: Data, using decoder: any JobDecoder) throws
 
-  func encode() throws -> Data
+  func encode(using encoder: any JobEncoder) throws -> Data
 
   func execute() async
 
@@ -64,14 +63,12 @@ extension SubmittableJob {
 
 public extension SubmittableJob where Self: Codable {
 
-
-  init(data: Data) throws {
-    self = try CBORDecoder.default.decode(Self.self, from: data)
+  init(from data: Data, using decoder: any JobDecoder) throws {
+    self = try decoder.decode(Self.self, from: data)
   }
 
-  func encode() throws -> Data {
-    try CBOREncoder.deterministic.encode(self)
+  func encode(using encoder: any JobEncoder) throws -> Data {
+    return try encoder.encode(self)
   }
-
 
 }

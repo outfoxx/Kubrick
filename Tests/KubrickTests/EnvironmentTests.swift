@@ -32,13 +32,13 @@ public class EnvironmentTest: XCTestCase {
         onExecute(currentJobKey)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -76,13 +76,13 @@ public class EnvironmentTest: XCTestCase {
         onExecute(currentJobDirector)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -126,13 +126,13 @@ public class EnvironmentTest: XCTestCase {
         onExecute(currentJobInputResults)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 

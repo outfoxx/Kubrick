@@ -37,12 +37,12 @@ public struct RetryJob<SourceJob: Job, ResultValue: JobValue>: Job where SourceJ
     for director: JobDirector
   ) async -> JobResult<Value> {
     guard let inputResult = inputResults.values.first else {
-      return .failure(JobError.invariantViolation(.inputResultInvalid))
+      return .failure(JobExecutionError.invariantViolation(.inputResultInvalid))
     }
     switch inputResult {
     case .success(let inputValue):
       guard let value = inputValue as? SourceJob.Value else {
-        return .failure(JobError.invariantViolation(.inputResultInvalid))
+        return .failure(JobExecutionError.invariantViolation(.inputResultInvalid))
       }
       return .success(value)
 

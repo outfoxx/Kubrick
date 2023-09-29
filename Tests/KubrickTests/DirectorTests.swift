@@ -49,13 +49,13 @@ class DirectorTests: XCTestCase {
         _ = await dynamicJobs.result(for: DynamicJob(onExecute: onExecute))
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = {}
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -109,13 +109,13 @@ class DirectorTests: XCTestCase {
         _ = await dynamicJobs.result(for: job)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = {}
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -151,13 +151,13 @@ class DirectorTests: XCTestCase {
         onExecute()
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = {}
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -205,11 +205,11 @@ class DirectorTests: XCTestCase {
     struct MainJob: SubmittableJob {
       init() {}
       func execute() async { print("🎉 Executing") }
-      init(data: Data) throws {}
-      func encode() throws -> Data { Data() }
+      init(from: Data, using: any JobDecoder) throws {}
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 

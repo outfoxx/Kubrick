@@ -11,17 +11,4 @@
 import Foundation
 
 
-public enum JobError: Error {
-  
-  public enum InvariantViolation {
-    case noCurrentInputs
-    case inputResultMissing
-    case inputResultInvalid
-    case inputFailureInvokedWithoutError
-    case executeInvokedWithFailedInput
-  }
-
-  case invariantViolation(InvariantViolation)
-  case multipleInputsFailed([Error])
-  case unboundInputs(jobType: any Job.Type, inputTypes: [Any.Type])
-}
+public typealias JobError = Error & Codable

@@ -48,13 +48,13 @@ class MapTests: XCTestCase {
         onExecute(text)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -99,13 +99,13 @@ class MapTests: XCTestCase {
         onExecute(count)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -153,13 +153,13 @@ class MapTests: XCTestCase {
         onExecute(count)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 

@@ -50,7 +50,7 @@ extension Result: JobHashable where Success: JobHashable {
       try value.jobHash(into: &hasher)
 
     case .failure(let error):
-      try hasher.update(data: CBOREncoder.deterministic.encode(ErrorBox(error)))
+      try hasher.update(data: CBOREncoder.deterministic.encode(JobErrorBox(error)))
     }
   }
 

@@ -54,23 +54,66 @@ public actor JobDirector: Identifiable {
   private let tasksCancellation = CancellationSource()
   private let resultState: RegisterCache<JobKey, Data>
   private let store: JobDirectorStore
+  private let errorTypeResolver: JobErrorTypeResolver
+  private let jobEncoder: any JobEncoder
+  private let jobDecoder: any JobDecoder
   private var state: State
 
   public init(
     id: JobDirectorID = .generate(),
     directory: URL,
-    typeResolver: SubmittableJobTypeResolver
+    typeResolver: SubmittableJobTypeResolver & JobErrorTypeResolver
   ) throws {
-    let store = try JobDirectorStore(location: Self.storeLocation(id: id, directory: directory),
-                                     typeResolver: typeResolver)
-    self.init(id: id, store: store)
+    try self.init(id: id, directory: directory, jobTypeResolver: typeResolver, errorTypeResolver: typeResolver)
   }
 
-  init(id: ID, store: JobDirectorStore) {
+  public init(
+    id: JobDirectorID = .generate(),
+    directory: URL,
+    jobTypeResolver: SubmittableJobTypeResolver,
+    errorTypeResolver: JobErrorTypeResolver
+  ) throws {
+
+    let cborEncoder = {
+      let encoder = CBOREncoder()
+      encoder.deterministic = true
+      encoder.userInfo[JobErrorBox.typeResolverKey] = errorTypeResolver
+      return encoder
+    }()
+
+    let cborDecoder = {
+      let decoder = CBORDecoder()
+      decoder.userInfo[JobErrorBox.typeResolverKey] = errorTypeResolver
+      return decoder
+    }()
+
+    let store = try JobDirectorStore(location: Self.storeLocation(id: id, directory: directory),
+                                     jobTypeResolver: jobTypeResolver,
+                                     jobEncoder: cborEncoder,
+                                     jobDecoder: cborDecoder)
+    self.init(
+      id: id,
+      store: store,
+      errorTypeResolver: errorTypeResolver,
+      jobEncoder: cborEncoder,
+      jobDecoder: cborDecoder
+    )
+  }
+
+  init(
+    id: ID,
+    store: JobDirectorStore,
+    errorTypeResolver: JobErrorTypeResolver,
+    jobEncoder: any JobEncoder,
+    jobDecoder: any JobDecoder
+  ) {
     self.id = id
     self.store = store
     self.injected = JobInjectValues()
     self.resultState = RegisterCache(store: store)
+    self.errorTypeResolver = errorTypeResolver
+    self.jobEncoder = jobEncoder
+    self.jobDecoder = jobDecoder
     self.state = .created
   }
 
@@ -150,6 +193,14 @@ public actor JobDirector: Identifiable {
 
   public var submittedJobCount: Int {
     get async throws { try await store.jobCount }
+  }
+
+  public func encode(_ value: some Encodable) throws -> Data {
+    return try jobEncoder.encode(value)
+  }
+
+  public func decode<Value: Decodable>(_ type: Value.Type, from data: Data) throws -> Value {
+    return try jobDecoder.decode(type, from: data)
   }
 
   func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) async throws {
@@ -236,7 +287,7 @@ public actor JobDirector: Identifiable {
 
     let unbound = job.inputDescriptors.filter(\.isUnbound)
     if !unbound.isEmpty {
-      throw JobError.unboundInputs(jobType: type(of: job), inputTypes: unbound.map { $0.reportType })
+      throw JobExecutionError.unboundInputs(jobType: type(of: job), inputTypes: unbound.map { $0.reportType })
     }
 
     return try await withThrowingTaskGroup(of: ResolvedInput.self) { group in
@@ -311,7 +362,7 @@ public actor JobDirector: Identifiable {
       case .success(let value):
         try inputHasher.update(value: value)
       case .failure(let error):
-        try inputHasher.update(value: ErrorBox(error))
+        try inputHasher.update(value: JobErrorBox(error))
       }
     }
 
@@ -344,10 +395,10 @@ public actor JobDirector: Identifiable {
 
       logger.jobTrace { $0.trace("[\(jobKey)] Serializing state") }
 
-      return try CBOREncoder.deterministic.encode(ResultState(result: result))
+      return try self.encode(ResultState(result: result))
     }
 
-    return try CBORDecoder.default.decode(ResultState<J.Value>.self, from: serializedState).result
+    return try self.decode(ResultState<J.Value>.self, from: serializedState).result
   }
 
   private func removeJob(jobKey: JobKey) async {

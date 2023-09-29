@@ -127,15 +127,32 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
   }
 
   private let dbQueue: DatabasePool
-  private let typeResolver: SubmittableJobTypeResolver
+  private let jobTypeResolver: SubmittableJobTypeResolver
+  private let jobEncoder: any JobEncoder
+  private let jobDecoder: any JobDecoder
 
-  public convenience init(location: URL, typeResolver: SubmittableJobTypeResolver) throws {
-    self.init(dbQueue: try Self.db(path: location.path), typeResolver: typeResolver)
+  public convenience init(
+    location: URL,
+    jobTypeResolver: SubmittableJobTypeResolver,
+    jobEncoder: any JobEncoder,
+    jobDecoder: any JobDecoder
+  ) throws {
+    self.init(dbQueue: try Self.db(path: location.path),
+              jobTypeResolver: jobTypeResolver,
+              jobEncoder: jobEncoder,
+              jobDecoder: jobDecoder)
   }
 
-  init(dbQueue: DatabasePool, typeResolver: SubmittableJobTypeResolver) {
+  init(
+    dbQueue: DatabasePool,
+    jobTypeResolver: SubmittableJobTypeResolver,
+    jobEncoder: any JobEncoder,
+    jobDecoder: any JobDecoder
+  ) {
     self.dbQueue = dbQueue
-    self.typeResolver = typeResolver
+    self.jobTypeResolver = jobTypeResolver
+    self.jobEncoder = jobEncoder
+    self.jobDecoder = jobDecoder
   }
 
 
@@ -154,15 +171,15 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
       try SubmittedJobEntry.fetchAll(db)
     }
     return try entries.map {
-      let type = try typeResolver.resolve(typeId: $0.type)
-      return (try type.init(data: $0.data), JobID(uuid: $0.id), $0.expiration)
+      let type = try jobTypeResolver.resolve(jobTypeId: $0.type)
+      return (try type.init(from: $0.data, using: jobDecoder), JobID(uuid: $0.id), $0.expiration)
     }
   }
 
   func saveJob(_ job: some SubmittableJob, id: JobID, expiration: Date) async throws -> Bool {
     try await dbQueue.write { db in
 
-      let data = try job.encode()
+      let data = try job.encode(using: self.jobEncoder)
 
       if let current = try SubmittedJobEntry.filter(id: id).fetchOne(db) {
 

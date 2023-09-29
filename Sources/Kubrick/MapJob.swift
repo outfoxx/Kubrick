@@ -34,7 +34,7 @@ struct MapJob<SourceJob: Job, NewValue: JobValue>: Job {
   ) async -> JobResult<Value> {
 
     guard let inputResult = inputResults[source.id] else {
-      return .failure(JobError.invariantViolation(.inputResultMissing))
+      return .failure(JobExecutionError.invariantViolation(.inputResultMissing))
     }
     
     switch inputResult {
@@ -43,7 +43,7 @@ struct MapJob<SourceJob: Job, NewValue: JobValue>: Job {
 
     case .success(let inputValue):
       guard let value = inputValue as? SourceJob.Value else {
-        return .failure(JobError.invariantViolation(.inputResultInvalid))
+        return .failure(JobExecutionError.invariantViolation(.inputResultInvalid))
       }
       do {
         return .success(try await transform(value))

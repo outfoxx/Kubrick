@@ -16,9 +16,70 @@ import XCTest
 
 class ErrorTests: XCTestCase {
 
-  enum TestError: Error {
+  enum TestError: Error, Codable, Equatable {
     case test
     case test2
+  }
+
+  func test_ErrorBoxKnownTypes() throws {
+
+    let typeResolver = TypeNameTypeResolver(jobs: [], errors: [TestError.self])
+
+    let decoder = JSONDecoder()
+    decoder.userInfo[JobErrorBox.typeResolverKey] = typeResolver
+
+    let encoder = JSONEncoder()
+    encoder.userInfo[JobErrorBox.typeResolverKey] = typeResolver
+
+    let error = TestError.test
+    let encodedBox = try encoder.encode(JobErrorBox(error))
+    let decodedBox = try decoder.decode(JobErrorBox.self, from: encodedBox)
+
+    do {
+      throw decodedBox.error
+    }
+    catch TestError.test {
+      // Worked!
+    }
+    catch {
+      XCTFail("Unexpected error type: \(error)")
+    }
+  }
+
+  func test_ErrorBoxKnownUnknownTypes() throws {
+
+    let typeResolver = TypeNameTypeResolver(jobs: [], errors: [TestError.self])
+
+    let decoder = JSONDecoder()
+
+    let encoder = JSONEncoder()
+    encoder.userInfo[JobErrorBox.typeResolverKey] = typeResolver
+
+    let error = TestError.test
+    let encodedBox = try encoder.encode(JobErrorBox(error))
+
+    do {
+      _ = try decoder.decode(JobErrorBox.self, from: encodedBox)
+    }
+    catch is DecodingError {
+      // Worked!
+    }
+    catch {
+      XCTFail("Unexpected error type: \(error)")
+    }
+  }
+
+  func test_ErrorBoxUnknownTypes() throws {
+
+    let decoder = JSONDecoder()
+    let encoder = JSONEncoder()
+
+    let error = TestError.test
+    let encodedBox = try encoder.encode(JobErrorBox(error))
+    let decodedBox = try decoder.decode(JobErrorBox.self, from: encodedBox)
+
+    XCTAssertTrue(type(of: decodedBox.error) == NSError.self)
+    XCTAssertEqual(decodedBox.error as NSError, error as NSError)
   }
 
   func test_ExecuteNotCalledWhenFailingInputs() async throws {
@@ -41,11 +102,11 @@ class ErrorTests: XCTestCase {
         XCTFail("Should not be called")
       }
 
-      init(data: Data) throws {}
-      func encode() throws -> Data { Data() }
+      init(from: Data, using: any JobDecoder) throws {}
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -96,11 +157,11 @@ class ErrorTests: XCTestCase {
         XCTFail("Should not be called")
       }
 
-      init(data: Data) throws {}
-      func encode() throws -> Data { Data() }
+      init(from: Data, using: any JobDecoder) throws {}
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -142,13 +203,13 @@ class ErrorTests: XCTestCase {
         onExecute(count)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -208,13 +269,13 @@ class ErrorTests: XCTestCase {
         XCTFail("Should not be called")
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onFailed = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 

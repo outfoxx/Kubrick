@@ -26,7 +26,7 @@ extension JobInputResults {
         return error
       }
       else {
-        return JobError.multipleInputsFailed(errors)
+        return JobExecutionError.multipleInputsFailed(errors)
       }
     }
     return nil

@@ -57,7 +57,7 @@ final class KubrickTests: XCTestCase {
 }
 
 
-let jobTypeResolver = TypeNameJobTypeResolver(types: [
+let jobTypeResolver = TypeNameTypeResolver(jobs: [
   ProcessMessageJob.self
 ])
 
@@ -109,17 +109,13 @@ struct ProcessMessageJob: SubmittableJob {
     }
   }
 
-  init(data: Data) throws {
-    let summary = try CBORDecoder.default.decode(MessageSummary.self, from: data)
+  init(from data: Data, using decoder: any JobDecoder) throws {
+    let summary = try decoder.decode(MessageSummary.self, from: data)
     self.init(summary: summary)
   }
 
-  static func encode(id: UUID) throws -> Data {
-    return try CBOREncoder.deterministic.encode(id)
-  }
-
-  func encode() throws -> Data {
-    return try CBOREncoder.deterministic.encode(summary)
+  func encode(using encoder: any JobEncoder) throws -> Data {
+    return try encoder.encode(summary)
   }
 
 }

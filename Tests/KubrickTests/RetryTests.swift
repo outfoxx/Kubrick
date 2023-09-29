@@ -72,13 +72,13 @@ class RetryTests: XCTestCase {
         onExecute(count1 + count2)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -140,13 +140,13 @@ class RetryTests: XCTestCase {
         onExecute(count1 + count2)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
@@ -194,13 +194,13 @@ class RetryTests: XCTestCase {
         onExecute(count)
       }
 
-      init(data: Data) throws {
+      init(from: Data, using: any JobDecoder) throws {
         onExecute = { _ in }
       }
-      func encode() throws -> Data { Data() }
+      func encode(using: any JobEncoder) throws -> Data { Data() }
     }
 
-    let typeResolver = TypeNameJobTypeResolver(types: [
+    let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 

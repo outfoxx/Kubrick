@@ -49,7 +49,13 @@ extension JobResult: Codable where Success: Codable {
       self = .success(value)
     }
     else {
-      self = .failure(try ErrorBox.decode(from: container, forKey: .failure))
+      let errorBox = try container.decode(JobErrorBox.self, forKey: .failure)
+      guard let error = errorBox.error as? Failure else {
+        throw DecodingError.typeMismatch(at: container.codingPath + [CodingKeys.failure],
+                                         expectation: Failure.self,
+                                         reality: errorBox.error)
+      }
+      self = .failure(error)
     }
   }
 
@@ -59,94 +65,12 @@ extension JobResult: Codable where Success: Codable {
     case .success(let value):
       try container.encode(value, forKey: .success)
     case .failure(let error):
-      try container.encode(ErrorBox(error), forKey: .failure)
+      try container.encode(JobErrorBox(error), forKey: .failure)
     }
   }
 
 }
 
-
-public struct ErrorBox: Codable, JobHashable {
-  var error: any Error
-
-  public init(_ error: Error) {
-    self.error = error
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    if let codableType = Error.self as? Codable.Type {
-      self.error = try container.decode(codableType) as! Error
-    }
-    else {
-      self.error = try container.decode(using: NSErrorCodingTransformer.instance)
-    }
-  }
-
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    if let codableError = error as? Codable {
-      try container.encode(codableError)
-    }
-    else {
-      try container.encode(error as NSError, using: NSErrorCodingTransformer.instance)
-    }
-  }
-
-  public static func decode<SpecificError: Swift.Error, CodingKeys: CodingKey>(
-    from container: KeyedDecodingContainer<CodingKeys>,
-    forKey key: CodingKeys
-  ) throws -> SpecificError {
-    let box = try container.decode(Self.self, forKey: key)
-    guard let error = box.error as? SpecificError else {
-      throw DecodingError.dataCorruptedError(
-        forKey: key,
-        in: container,
-        debugDescription: "Failure value has incorrect type '\(type(of: box.error))', expected '\(SpecificError.self)'"
-      )
-    }
-    return error
-  }
-
-  public func decode<SpecificError: Swift.Error>(
-    from container: inout UnkeyedDecodingContainer
-  ) throws -> SpecificError {
-    let box = try container.decode(Self.self)
-    guard let error = box.error as? SpecificError else {
-      throw DecodingError.dataCorruptedError(
-        in: container,
-        debugDescription: "Failure value has incorrect type '\(type(of: box.error))', expected '\(SpecificError.self)'"
-      )
-    }
-    return error
-  }
-}
-
-
-public enum NSErrorCodingTransformer: ValueCodingTransformer {
-  case instance
-
-  enum Error: Int, Swift.Error, Codable {
-    case unknownError
-  }
-
-  public func decode(_ value: Data) throws -> NSError {
-    guard let error = try NSKeyedUnarchiver.unarchivedObject(ofClass: NSError.self, from: value) else {
-      return Error.unknownError as NSError
-    }
-    return error
-  }
-
-  public func encode(_ value: NSError) throws -> Data {
-    do {
-      return try NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: true)
-    }
-    catch {
-      throw Error.unknownError
-    }
-  }
-
-}
 
 extension JobResult {
 
@@ -165,12 +89,12 @@ extension Result {
     switch self {
     case .success(let value):
       guard let value = value as? Value else {
-        throw JobError.invariantViolation(.inputResultInvalid)
+        throw JobExecutionError.invariantViolation(.inputResultInvalid)
       }
       return value
 
     case .failure:
-      throw JobError.invariantViolation(.executeInvokedWithFailedInput)
+      throw JobExecutionError.invariantViolation(.executeInvokedWithFailedInput)
     }
   }
 
