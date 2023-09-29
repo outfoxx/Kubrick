@@ -56,11 +56,11 @@ extension Result: JobHashable where Success: JobHashable {
 
 }
 
-extension Dictionary: JobHashable where Self: Codable, Key: JobHashable, Value: JobHashable {}
+extension Dictionary: JobHashable where Self: Encodable, Key: JobHashable, Value: JobHashable {}
 
 extension Array: JobHashable where Self: Encodable, Element: JobHashable {}
 
-extension Set: JobHashable where Self: Codable, Element: JobHashable, Element: Comparable {
+extension Set: JobHashable where Self: Encodable, Element: JobHashable, Element: Comparable {
 
   public func jobHash<Hasher: JobHasher>(into hasher: inout Hasher) throws {
     try sorted().jobHash(into: &hasher)
