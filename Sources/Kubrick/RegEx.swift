@@ -30,6 +30,9 @@ extension NSRegularExpression {
       return nil
     }
     let groups = groupNames.map { ($0, match.range(withName: $0)) }.map { key, range in
+      guard range.lowerBound != .max else {
+        return (key, Substring(""))
+      }
       let startIdx = string.index(string.startIndex, offsetBy: range.lowerBound)
       let endIdx = string.index(startIdx, offsetBy: range.length)
       return (key, string[startIdx ..< endIdx])
