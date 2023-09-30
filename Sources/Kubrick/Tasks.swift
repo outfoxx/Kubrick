@@ -45,8 +45,8 @@ extension Task where Success == Void, Failure == Never {
       }
       catch {
         await future.fulfill(throwing: error)
-        await onComplete()
       }
+      await onComplete()
     }
 
     return future
