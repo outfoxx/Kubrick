@@ -17,10 +17,12 @@ import RegexBuilder
 public struct JobKey: Equatable, Hashable, Codable {
   public var submission: JobID
   public var fingerprint: Data
+  public var tags: [String]
 
-  public init(submission: JobID, fingerprint: Data) {
+  public init(submission: JobID, fingerprint: Data, tags: [String] = []) {
     self.submission = submission
     self.fingerprint = fingerprint
+    self.tags = tags
   }
 }
 
@@ -29,22 +31,27 @@ extension JobKey: CustomStringConvertible {
 
   public var description: String {
     let fingerprint = fingerprint.base64UrlEncodedString()
-    return "\(Self.scheme)://\(submission)/\(fingerprint)"
+    let tags = tags.isEmpty ? "" : "#\(tags.joined(separator: ","))"
+    return "\(Self.scheme)://\(submission)/\(fingerprint)\(tags)"
   }
 
   public init?(string: String) {
     guard
-      let result = Self.regex.matches(string, groupNames: ["jobid", "fingerprint"]),
+      let result = Self.regex.matches(string, groupNames: ["jobid", "fingerprint", "tags"]),
       let jobID = result["jobid"].flatMap({ JobID(string: String($0)) }),
-      let jobFingerprint = result["fingerprint"].flatMap({ Data(base64UrlEncoded: String($0)) })
+      let jobFingerprint = result["fingerprint"].flatMap({ Data(base64UrlEncoded: String($0)) }),
+      let tags = result["tags"].flatMap(String.init)
     else {
       return nil
     }
     self.submission = jobID
     self.fingerprint = jobFingerprint
+    self.tags = tags.split(separator: ",").map(String.init)
   }
 
   static let scheme = "job"
-  static let regex = NSRegularExpression(#"\#(scheme)://(?<jobid>[a-zA-Z0-9]+)/(?<fingerprint>[a-zA-Z0-9-_]+)"#)
+  static let regex = NSRegularExpression(
+    #"\#(scheme)://(?<jobid>[a-zA-Z0-9]+)/(?<fingerprint>[a-zA-Z0-9-_]+)(#(?<tags>\w+(,\w+)*))?"#
+  )
 
 }
