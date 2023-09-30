@@ -21,6 +21,26 @@ class ErrorTests: XCTestCase {
     case test2
   }
 
+  func test_JobInputResultsFailureMapsToSingleFailureIgnoringCancellation() {
+
+    let inputs: JobInputResults = [
+      UUID(): .failure(CancellationError()),
+      UUID(): .failure(TestError.test),
+      UUID(): .failure(CancellationError())
+    ]
+
+    guard let failure = inputs.failure else {
+      return XCTFail("Failure should not be nil")
+    }
+
+    switch failure {
+    case TestError.test:
+      break
+    default:
+      XCTFail("Unexpected error type")
+    }
+  }
+
   func test_ErrorBoxKnownTypes() throws {
 
     let typeResolver = TypeNameTypeResolver(jobs: [], errors: [TestError.self])
