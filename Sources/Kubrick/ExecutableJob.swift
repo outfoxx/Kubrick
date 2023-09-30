@@ -43,7 +43,7 @@ extension ExecutableJob {
             return .success(NoValue.instance)
           }
           catch {
-            logger.error("[\(jobKey)] Execute failed: error=\(error)")
+            logger.jobTrace { $0.error("[\(jobKey)] Execute failed: error=\(error)") }
             return .failure(error)
           }
         }

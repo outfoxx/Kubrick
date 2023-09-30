@@ -45,7 +45,7 @@ extension ResultJob {
             return .success(try await execute())
           }
           catch {
-            logger.error("[\(jobKey)] Execute failed: error=\(error)")
+            logger.jobTrace { $0.error("[\(jobKey)] Execute failed: error=\(error)") }
             return .failure(error)
           }
         }
