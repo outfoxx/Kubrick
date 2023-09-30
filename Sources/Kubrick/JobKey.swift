@@ -51,7 +51,7 @@ extension JobKey: CustomStringConvertible {
 
   static let scheme = "job"
   static let regex = NSRegularExpression(
-    #"\#(scheme)://(?<jobid>[a-zA-Z0-9]+)/(?<fingerprint>[a-zA-Z0-9-_]+)(#(?<tags>\w+(,\w+)*))?"#
+    #"\#(scheme)://(?<jobid>[a-zA-Z0-9]+)/(?<fingerprint>[a-zA-Z0-9-_]+)(#(?<tags>[\w\-]+(,[\w\-]+)*))?"#
   )
 
 }
