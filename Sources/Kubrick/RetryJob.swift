@@ -56,25 +56,12 @@ public struct RetryJob<SourceJob: Job, ResultValue: JobValue>: Job where SourceJ
 
 public extension Job {
 
-  func retry(filter: @escaping (_ error: any Error, _ attempt: Int) async -> Bool) -> some Job<Value> {
+  func retry(filter: @escaping (_ error: any Error, _ nextAttempt: Int) async -> Bool) -> some Job<Value> {
     return RetryJob(source: self, filter: filter)
   }
 
   func retry(maxAttempts: Int) -> some Job<Value> {
-    return RetryJob(source: self) { _, nextAttempt in nextAttempt < maxAttempts }
-  }
-
-}
-
-
-public extension Job where Value == NoValue {
-
-  func retry(filter: @escaping (_ error: any Error, _ attempt: Int) async -> Bool) -> some Job<NoValue> {
-    return RetryJob(source: self, filter: filter)
-  }
-
-  func retry(maxAttempts: Int) -> some Job<NoValue> {
-    return RetryJob(source: self) { _, nextAttempt in nextAttempt < maxAttempts }
+    return RetryJob(source: self) { _, nextAttempt in nextAttempt <= maxAttempts }
   }
 
 }
@@ -93,8 +80,8 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
   ) async throws -> (id: UUID, result: JobResult<SourceJob.Value>) {
 
     let id = UUID()
-
     var attempt: Int = 1
+
     while true {
 
       let resolved = try await director.resolve(job, submission: submission)
@@ -103,11 +90,12 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
         return (id, .success(success))
 
       case (let jobKey, .failure(let error)):
+
+        attempt += 1
+
         if await !filter(error, attempt) {
           return (id, .failure(error))
         }
-
-        attempt += 1
 
         logger.jobTrace { $0.warning("[\(jobKey)] Failed, retrying: attempt=\(attempt)") }
 
