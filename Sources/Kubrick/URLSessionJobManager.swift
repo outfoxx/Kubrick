@@ -410,7 +410,6 @@ public actor URLSessionJobManager {
         return task
       }
     }
-    print("Task not found\n", tasks.map(\.taskDescription))
     return nil
   }
 
