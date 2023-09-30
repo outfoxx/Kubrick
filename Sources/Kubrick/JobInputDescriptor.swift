@@ -22,7 +22,7 @@ public protocol JobInputDescriptor {
 
   var reportType: Value.Type { get }
 
-  func resolve(for director: JobDirector, submission: JobID) async throws -> (id: UUID, result: JobInputResult<Value>)
+  func resolve(for director: JobDirector, submission: JobID, tags: [String]) async throws -> (id: UUID, result: JobInputResult<Value>)
 
 }
 
@@ -47,8 +47,9 @@ public struct AdHocJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
   public func resolve(
     for director: JobDirector,
-    submission: JobID
+    submission: JobID,
+    tags: [String]
   ) async throws -> (id: UUID, result: JobInputResult<SourceJob.Value>) {
-    return (id, try await director.resolve(job, submission: submission).result)
+    return (id, try await director.resolve(job, submission: submission, tags: tags).result)
   }
 }

@@ -40,9 +40,10 @@ extension JobInput: JobInputDescriptor {
 
   public func resolve(
     for director: JobDirector,
-    submission: JobID
+    submission: JobID,
+    tags: [String]
   ) async throws -> (id: UUID, result: JobInputResult<Value>) {
-    return try await projectedValue.resolve(for: director, submission: submission)
+    return try await projectedValue.resolve(for: director, submission: submission, tags: tags)
   }
 
 }

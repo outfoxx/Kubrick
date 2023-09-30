@@ -76,7 +76,8 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
   func resolve(
     for director: JobDirector,
-    submission: JobID
+    submission: JobID,
+    tags: [String]
   ) async throws -> (id: UUID, result: JobResult<SourceJob.Value>) {
 
     let id = UUID()

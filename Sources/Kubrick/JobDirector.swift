@@ -201,10 +201,11 @@ public actor JobDirector: Identifiable {
 
   func resolve<J: Job>(
     _ job: J,
-    submission: JobID
+    submission: JobID,
+    tags: [String]
   ) async throws -> (jobKey: JobKey, result: JobResult<J.Value>) {
 
-    let (jobKey, inputResults) = try await prepare(job: job, submission: submission)
+    let (jobKey, inputResults) = try await prepare(job: job, submission: submission, tags: tags)
 
     do {
 
@@ -257,7 +258,7 @@ public actor JobDirector: Identifiable {
   private func process(_ job: some SubmittableJob, submission: JobID, expiration: Date) {
     jobTask { [self] in
       do {
-        let (jobKey, result) = try await resolve(job, submission: submission)
+        let (jobKey, result) = try await resolve(job, submission: submission, tags: [])
 
         if case .failure(let error) = result {
           logger.error("[\(submission)] Job processing failed: error=\(error, privacy: .public)")
@@ -282,7 +283,7 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  private func resolveInputs(job: some Job, submission: JobID) async throws -> ResolvedInputs {
+  private func resolveInputs(job: some Job, submission: JobID, tags: [String]) async throws -> ResolvedInputs {
 
     logger.jobTrace { $0.trace("Resolving inputs: job-type=\(type(of: job))") }
 
@@ -306,7 +307,7 @@ public actor JobDirector: Identifiable {
         }
 
         group.addTask {
-          try await resolve(inputDescriptor)
+          try await resolveInput(inputDescriptor)
         }
       }
 
@@ -335,9 +336,9 @@ public actor JobDirector: Identifiable {
       return resolved
     }
 
-    @Sendable func resolve(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {
+    @Sendable func resolveInput(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {
 
-      let resolved = try await inputDescriptor.resolve(for: self, submission: submission)
+      let resolved = try await inputDescriptor.resolve(for: self, submission: submission, tags: tags)
 
       let result: AnyJobInputResult
       switch resolved.result {
@@ -352,7 +353,12 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  private func fingerprint(job: some Job, resolved: ResolvedInputs, submission: JobID) throws -> JobKey {
+  private func fingerprint(
+    job: some Job,
+    resolved: ResolvedInputs,
+    submission: JobID,
+    tags: [String]
+  ) throws -> JobKey {
 
     var inputHasher = SHA256()
     inputHasher.update(type: type(of: job))
@@ -367,14 +373,16 @@ public actor JobDirector: Identifiable {
       }
     }
 
-    return JobKey(submission: submission, fingerprint: inputHasher.finalized())
+    try inputHasher.update(value: tags)
+
+    return JobKey(submission: submission, fingerprint: inputHasher.finalized(), tags: tags)
   }
 
-  private func prepare(job: some Job, submission: JobID) async throws -> (JobKey, JobInputResults) {
+  private func prepare(job: some Job, submission: JobID, tags: [String]) async throws -> (JobKey, JobInputResults) {
 
-    let resolvedInputs = try await resolveInputs(job: job, submission: submission)
+    let resolvedInputs = try await resolveInputs(job: job, submission: submission, tags: tags)
 
-    let jobKey = try fingerprint(job: job, resolved: resolvedInputs, submission: submission)
+    let jobKey = try fingerprint(job: job, resolved: resolvedInputs, submission: submission, tags: tags)
     let values = Dictionary(uniqueKeysWithValues: resolvedInputs.map { ($0.id, $0.result) })
 
     return (jobKey, values)

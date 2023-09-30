@@ -102,7 +102,7 @@ public struct JobBinding<Value: JobHashable> {
 protocol JobResolver<Value> {
   associatedtype Value: JobHashable
 
-  func resolve(for director: JobDirector, submission: JobID) async throws -> JobInputResult<Value>
+  func resolve(for director: JobDirector, submission: JobID, tags: [String]) async throws -> JobInputResult<Value>
 }
 
 
@@ -110,10 +110,10 @@ struct PassthroughJobResolver<Value: JobValue>: JobResolver {
 
   let job: any Job<Value>
 
-  func resolve(for director: JobDirector, submission: JobID) async throws -> JobInputResult<Value> {
+  func resolve(for director: JobDirector, submission: JobID, tags: [String]) async throws -> JobInputResult<Value> {
 
     @Sendable func unboxedResolve(_ job: some Job<Value>) async throws -> JobResult<Value> {
-      try await director.resolve(job, submission: submission).result
+      try await director.resolve(job, submission: submission, tags: tags).result
     }
 
     return try await unboxedResolve(job)
@@ -127,10 +127,10 @@ struct OptionalJobResolver<Wrapped: JobValue>: JobResolver {
 
   let job: any Job<Wrapped>
 
-  func resolve(for director: JobDirector, submission: JobID) async throws -> JobInputResult<Value> {
+  func resolve(for director: JobDirector, submission: JobID, tags: [String]) async throws -> JobInputResult<Value> {
 
     @Sendable func unboxedResolve(_ job: some Job<Wrapped>) async throws -> JobResult<Value> {
-      let result = try await director.resolve(job, submission: submission).result
+      let result = try await director.resolve(job, submission: submission, tags: tags).result
       switch result {
       case .success(let value):
         return .success(value)
@@ -146,11 +146,15 @@ struct OptionalJobResolver<Wrapped: JobValue>: JobResolver {
 
 internal extension JobBinding {
 
-  func resolve(for director: JobDirector, submission: JobID) async throws -> (UUID, JobInputResult<Value>) {
+  func resolve(
+    for director: JobDirector,
+    submission: JobID,
+    tags: [String]
+  ) async throws -> (UUID, JobInputResult<Value>) {
 
     switch state {
     case .job(let id, let resolver):
-      return (id, try await resolver.resolve(for: director, submission: submission))
+      return (id, try await resolver.resolve(for: director, submission: submission, tags: tags))
 
     case .constant(let id, let value):
       return (id, .success(value))
