@@ -29,6 +29,89 @@ class RetryTests: XCTestCase {
     }
   }
 
+  func test_RetryTree() async throws {
+
+    struct DependencyJob: ExecutableJob {
+      @JobInput var id = UniqueID()
+
+      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
+      let onExecute: () -> Void
+
+      init(id: UniqueID = UniqueID(), onExecute: @escaping () -> Void) {
+        self.id = id
+        self.onExecute = onExecute
+      }
+
+      func execute() async throws {
+        onExecute()
+      }
+
+    }
+
+    struct RetriedJob: ResultJob {
+      @JobInput var id = UniqueID()
+      @JobInput var dep: NoValue
+      let counter = Counter()
+      let failUnder: Int
+
+      init(failUnder: Int, onDependencyExecute: @escaping () -> Void) {
+        self.failUnder = failUnder
+        self.$dep.bind(job: DependencyJob(onExecute: onDependencyExecute))
+      }
+
+      func execute() async throws -> Int {
+        let count = await counter.increment()
+        if count < failUnder {
+          throw TestError.lowCount
+        }
+        return count
+      }
+    }
+
+    struct MainJob: SubmittableJob {
+      @JobInput var count1: Int
+      @JobInput var count2: Int
+
+      init(onDependencyExecute: @escaping () -> Void) {
+        self.$count1.bind {
+          RetriedJob(failUnder: 4, onDependencyExecute: onDependencyExecute)
+            .retry(maxAttempts: 10)
+        }
+        self.$count2.bind {
+          RetriedJob(failUnder: 1, onDependencyExecute: onDependencyExecute)
+            .retry(maxAttempts: 10)
+        }
+      }
+
+      func execute() async {
+      }
+
+      init(from: Data, using: any JobDecoder) throws {}
+      func encode(using: any JobEncoder) throws -> Data { Data() }
+    }
+
+    let typeResolver = TypeNameTypeResolver(jobs: [
+      MainJob.self
+    ])
+
+    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    try await director.start()
+
+    let depExecuted = expectation(description: "DependencyJob executed")
+    depExecuted.expectedFulfillmentCount = 5
+
+    let id = JobID()
+
+    let mainJob = MainJob {
+      print("👍 fulfilling")
+      depExecuted.fulfill()
+    }
+
+    await director.submit(mainJob, id: id)
+
+    await fulfillment(of: [depExecuted], timeout: 3)
+  }
+
   func test_RetryUniqueInputs() async throws {
 
     struct RetriedJob: ResultJob {

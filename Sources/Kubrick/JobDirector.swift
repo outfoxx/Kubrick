@@ -222,10 +222,6 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  func unresolve(jobKey: JobKey) async throws {
-    try await resultState.deregister(for: jobKey)
-  }
-
   func runAs(jobKey: JobKey, operation: () async throws -> Void) async rethrows {
     try await Self.$currentJobDirector.withValue(self) {
       try await Self.$currentJobKey.withValue(jobKey) {

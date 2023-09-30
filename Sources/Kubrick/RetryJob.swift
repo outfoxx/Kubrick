@@ -85,7 +85,7 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
     while true {
 
-      let resolved = try await director.resolve(job, submission: submission)
+      let resolved = try await director.resolve(job, submission: submission, tags: tags + ["retry-attempt-\(attempt)"])
       switch resolved {
       case (_, .success(let success)):
         return (id, .success(success))
@@ -99,8 +99,6 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
         }
 
         logger.jobTrace { $0.warning("[\(jobKey)] Failed, retrying: attempt=\(attempt)") }
-
-        try await director.unresolve(jobKey: jobKey)
       }
 
     }
