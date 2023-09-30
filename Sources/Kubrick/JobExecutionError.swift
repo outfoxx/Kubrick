@@ -44,7 +44,7 @@ public enum JobExecutionError: JobError {
       self = .invariantViolation(try container.decode(InvariantViolation.self, forKey: .invariantViolation))
     }
     else if container.contains(.multipleInputsFailed) {
-      self = .multipleInputsFailed(try container.decode([JobErrorBox].self, forKey: .unboundInputs).map(\.error))
+      self = .multipleInputsFailed(try container.decode([JobErrorBox].self, forKey: .multipleInputsFailed).map(\.error))
     }
     else if container.contains(.unboundInputs) {
       let nestedContainer = try container.nestedContainer(keyedBy: UnboundInputsCodingKeys.self, forKey: .unboundInputs)
