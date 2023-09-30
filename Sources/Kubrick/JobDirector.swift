@@ -18,13 +18,6 @@ import PotentCBOR
 private let logger = Logger.for(category: "JobDirector")
 
 
-public enum JobDirectorError: Error {
-
-  case invalidDirectorState
-
-}
-
-
 public actor JobDirector: Identifiable {
 
   public typealias ID = JobDirectorID
@@ -41,7 +34,7 @@ public actor JobDirector: Identifiable {
     var result: JobResult<Value>
   }
 
-  typealias JobTaskFuture = Future<Void, Swift.Error>
+  typealias JobTaskFuture = Future<Void, Error>
 
   typealias ResolvedInput = (id: UUID, result: AnyJobInputResult, resultType: Any.Type)
   typealias ResolvedInputs = [ResolvedInput]
@@ -57,7 +50,6 @@ public actor JobDirector: Identifiable {
   private let tasksCancellation = CancellationSource()
   private let resultState: RegisterCache<JobKey, Data>
   private let store: JobDirectorStore
-  private let errorTypeResolver: JobErrorTypeResolver
   private let jobEncoder: any JobEncoder
   private let jobDecoder: any JobDecoder
   private var state: State
@@ -77,23 +69,23 @@ public actor JobDirector: Identifiable {
     errorTypeResolver: JobErrorTypeResolver
   ) throws {
 
-    let cborEncoder = {
-      let encoder = CBOREncoder()
-      encoder.deterministic = true
-      encoder.userInfo[JobErrorBox.typeResolverKey] = errorTypeResolver
-      return encoder
-    }()
+    let allErrorTypesResolver = MultiJobErrorTypeResolver(resolvers: [
+      errorTypeResolver,
+      packageErrorTypesResolver
+    ])
 
-    let cborDecoder = {
-      let decoder = CBORDecoder()
-      decoder.userInfo[JobErrorBox.typeResolverKey] = errorTypeResolver
-      return decoder
-    }()
+    let cborEncoder = CBOREncoder()
+    cborEncoder.deterministic = true
+    cborEncoder.userInfo[JobErrorBox.typeResolverKey] = allErrorTypesResolver
+
+    let cborDecoder = CBORDecoder()
+    cborDecoder.userInfo[JobErrorBox.typeResolverKey] = allErrorTypesResolver
 
     let store = try JobDirectorStore(location: Self.storeLocation(id: id, directory: directory),
                                      jobTypeResolver: jobTypeResolver,
                                      jobEncoder: cborEncoder,
                                      jobDecoder: cborDecoder)
+
     self.init(
       id: id,
       store: store,
@@ -114,7 +106,6 @@ public actor JobDirector: Identifiable {
     self.store = store
     self.injected = JobInjectValues()
     self.resultState = RegisterCache(store: store)
-    self.errorTypeResolver = errorTypeResolver
     self.jobEncoder = jobEncoder
     self.jobDecoder = jobDecoder
     self.state = .created
@@ -440,6 +431,25 @@ public actor JobDirector: Identifiable {
   }
 
 }
+
+
+// MARK: Errors
+
+
+public enum JobDirectorError: JobError {
+
+  case invalidDirectorState
+
+}
+
+
+private let packageErrorTypesResolver = TypeNameJobErrorTypeResolver(errors: [
+  JobDirectorError.self,
+  JobExecutionError.self,
+  URLSessionJobManagerError.self,
+  TypeNameSubmittableJobTypeResolver.Error.self,
+  NSErrorCodingTransformer.Error.self
+])
 
 
 // MARK: Environment

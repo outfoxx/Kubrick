@@ -16,9 +16,9 @@ public struct JobErrorBox: Codable, JobHashable {
 
   public static let typeResolverKey = CodingUserInfoKey(rawValue: "Kubrick.errorTypeResolver")!
 
-  var error: any Swift.Error
+  var error: any Error
 
-  public init(_ error: any Swift.Error) {
+  public init(_ error: any Error) {
     self.error = error
   }
 
@@ -85,7 +85,7 @@ public struct JobErrorBox: Codable, JobHashable {
 public enum NSErrorCodingTransformer: ValueCodingTransformer {
   case instance
 
-  enum Error: Int, Swift.Error, Codable {
+  enum Error: JobError {
     case unknownError
   }
 

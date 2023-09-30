@@ -284,7 +284,7 @@ struct ResolvedRoute: Codable, JobHashable {
 }
 
 
-enum MessageProcessingError: Swift.Error {
+enum MessageProcessingError: Error {
   case invalidSignature
   case unsecuredRoute
 }

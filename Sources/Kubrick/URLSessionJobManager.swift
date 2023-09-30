@@ -17,12 +17,13 @@ import RegexBuilder
 private let logger = Logger.for(category: "URLSessionJobs")
 
 
-public actor URLSessionJobManager {
+public enum URLSessionJobManagerError: JobError {
+  case invalidResponse
+  case downloadedFileMissing
+}
 
-  public enum Error: String, Swift.Error {
-    case invalidResponse
-    case downloadedFileMissing
-  }
+
+public actor URLSessionJobManager {
 
   public typealias Progress = (_ progressedBytes: Int, _ transferredBytes: Int, _ totalBytes: Int) async -> Void
 
@@ -97,7 +98,7 @@ public actor URLSessionJobManager {
 
       logger.debug("[\(task.taskIdentifier)] Download finished")
 
-      let result: Result<URL, Swift.Error>
+      let result: Result<URL, Error>
       do {
         let temporaryDir = try FileManager.default.url(for: .itemReplacementDirectory,
                                                        in: .userDomainMask,
@@ -147,7 +148,7 @@ public actor URLSessionJobManager {
       }
     }
 
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Swift.Error?) {
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
       guard let owner else { return }
 
       if let error {
@@ -179,10 +180,10 @@ public actor URLSessionJobManager {
 
     let task: URLSessionTask
     let progress: Progress?
-    let future: Future<Result, Swift.Error>
+    let future: Future<Result, Error>
     var url: URL?
 
-    init(task: URLSessionTask, future: Future<Result, Swift.Error>, progress: Progress?) {
+    init(task: URLSessionTask, future: Future<Result, Error>, progress: Progress?) {
       self.task = task
       self.future = future
       self.progress = progress
@@ -192,21 +193,21 @@ public actor URLSessionJobManager {
       self.url = url
     }
 
-    func finish(response: URLResponse?, error: Swift.Error?) async {
+    func finish(response: URLResponse?, error: Error?) async {
 
       if let error {
         return await future.fulfill(throwing: error)
       }
 
       guard let url else {
-        return await future.fulfill(throwing: Error.downloadedFileMissing)
+        return await future.fulfill(throwing: URLSessionJobManagerError.downloadedFileMissing)
       }
 
       guard
         let httpResponse = response as? HTTPURLResponse,
         let httpURL = httpResponse.url
       else {
-        return await future.fulfill(throwing: Error.invalidResponse)
+        return await future.fulfill(throwing: URLSessionJobManagerError.invalidResponse)
       }
 
       let httpHeaders = httpResponse
@@ -237,15 +238,15 @@ public actor URLSessionJobManager {
 
     let task: URLSessionTask
     let progress: Progress?
-    let future: Future<URLSessionJobResponse, Swift.Error>
+    let future: Future<URLSessionJobResponse, Error>
 
-    init(task: URLSessionTask, future: Future<URLSessionJobResponse, Swift.Error>, progress: Progress?) {
+    init(task: URLSessionTask, future: Future<URLSessionJobResponse, Error>, progress: Progress?) {
       self.task = task
       self.progress = progress
       self.future = future
     }
 
-    func finish(response: URLResponse?, error: Swift.Error?) async {
+    func finish(response: URLResponse?, error: Error?) async {
 
       if let error {
         await future.fulfill(throwing: error)
@@ -256,7 +257,7 @@ public actor URLSessionJobManager {
         let httpResponse = response as? HTTPURLResponse,
         let httpURL = httpResponse.url
       else {
-        await future.fulfill(throwing: Error.invalidResponse)
+        await future.fulfill(throwing: URLSessionJobManagerError.invalidResponse)
         return
       }
 

@@ -16,7 +16,7 @@ import XCTest
 
 class MapTests: XCTestCase {
 
-  enum TestError: Swift.Error {
+  enum TestError: Error {
     case test
   }
 
