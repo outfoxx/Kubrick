@@ -37,33 +37,6 @@ public actor URLSessionJobManager {
 
     public func urlSession(
       _ session: URLSession,
-      downloadTask task: URLSessionDownloadTask,
-      didWriteData bytesWritten: Int64,
-      totalBytesWritten: Int64,
-      totalBytesExpectedToWrite: Int64
-    ) {
-      guard let owner else { return }
-
-      logger.debug("[\(task.taskIdentifier)] Download progress update")
-
-      queueTask {
-        guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
-          logger.jobTrace {
-            $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
-          }
-          return
-        }
-
-        logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
-
-        await owner.director.runAs(jobKey: jobKey) {
-          await taskJobInfo.progress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
-        }
-      }
-    }
-
-    public func urlSession(
-      _ session: URLSession,
       task: URLSessionTask,
       didSendBodyData bytesSent: Int64,
       totalBytesSent: Int64,
@@ -85,6 +58,33 @@ public actor URLSessionJobManager {
 
         await owner.director.runAs(jobKey: jobKey) {
           await taskJobInfo.progress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
+        }
+      }
+    }
+
+    public func urlSession(
+      _ session: URLSession,
+      downloadTask task: URLSessionDownloadTask,
+      didWriteData bytesWritten: Int64,
+      totalBytesWritten: Int64,
+      totalBytesExpectedToWrite: Int64
+    ) {
+      guard let owner else { return }
+
+      logger.debug("[\(task.taskIdentifier)] Download progress update")
+
+      queueTask {
+        guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
+          logger.jobTrace {
+            $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+          }
+          return
+        }
+
+        logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
+
+        await owner.director.runAs(jobKey: jobKey) {
+          await taskJobInfo.progress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
         }
       }
     }
