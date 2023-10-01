@@ -107,7 +107,7 @@ class RetryTests: XCTestCase {
       depExecuted.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [depExecuted], timeout: 3)
   }
@@ -177,7 +177,7 @@ class RetryTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -245,7 +245,7 @@ class RetryTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -301,7 +301,7 @@ class RetryTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [executed], timeout: 3)
   }

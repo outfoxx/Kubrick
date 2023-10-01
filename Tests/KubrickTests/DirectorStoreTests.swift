@@ -29,11 +29,11 @@ class DirectorStoreTests: XCTestCase {
 
     let id = JobID.generate()
     let fingerprint = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
-    let key = JobKey(submission: id, fingerprint: fingerprint)
+    let key = JobKey(id: id, fingerprint: fingerprint)
 
     let data = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
 
-    let jobSaved = try await store.saveJob(MainJob(), id: id, deduplicationExpiration: .now)
+    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: .now)
     XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(data, forKey: key)
@@ -56,9 +56,9 @@ class DirectorStoreTests: XCTestCase {
 
     let id = JobID.generate()
     let fingerprint = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
-    let key = JobKey(submission: id, fingerprint: fingerprint)
+    let key = JobKey(id: id, fingerprint: fingerprint)
 
-    let jobSaved = try await store.saveJob(MainJob(), id: id, deduplicationExpiration: .now)
+    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: .now)
     XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(Data(), forKey: key)
@@ -92,15 +92,15 @@ class DirectorStoreTests: XCTestCase {
     let fingerprint1 = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
     let fingerprint2 = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
     let fingerprint3 = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
-    let key1 = JobKey(submission: id, fingerprint: fingerprint1)
-    let key2 = JobKey(submission: id, fingerprint: fingerprint2)
-    let key3 = JobKey(submission: id, fingerprint: fingerprint3)
+    let key1 = JobKey(id: id, fingerprint: fingerprint1)
+    let key2 = JobKey(id: id, fingerprint: fingerprint2)
+    let key3 = JobKey(id: id, fingerprint: fingerprint3)
 
     let data1 = try CBOREncoder.default.encode(Int.random(in: .min ... .max))
     let data2 = try CBOREncoder.default.encode(Int.random(in: .min ... .max))
     let data3 = try CBOREncoder.default.encode(Int.random(in: .min ... .max))
 
-    let jobSaved = try await store.saveJob(MainJob(), id: id, deduplicationExpiration: .now)
+    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: .now)
     XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(data1, forKey: key1)
@@ -134,7 +134,7 @@ class DirectorStoreTests: XCTestCase {
     }
   }
 
-  func test_QueryResultBySubmission() async throws {
+  func test_QueryResultById() async throws {
 
     struct MainJob: SubmittableJob, Codable {
       func execute() async {
@@ -148,12 +148,12 @@ class DirectorStoreTests: XCTestCase {
     let store = try JobDirectorStore(location: location)
 
     let jobID = JobID()
-    _ = try await store.saveJob(MainJob(), id: jobID, deduplicationExpiration: .now)
+    _ = try await store.saveJob(MainJob(), as: jobID, deduplicationExpiration: .now)
 
-    let jobKey1 = JobKey(submission: jobID, fingerprint: Data(repeating: 1, count: 32))
+    let jobKey1 = JobKey(id: jobID, fingerprint: Data(repeating: 1, count: 32))
     try await store.updateValue(Data(repeating: 1, count: 10), forKey: jobKey1)
 
-    let jobKey2 = JobKey(submission: jobID, fingerprint: Data(repeating: 2, count: 32))
+    let jobKey2 = JobKey(id: jobID, fingerprint: Data(repeating: 2, count: 32))
     try await store.updateValue(Data(repeating: 2, count: 10), forKey: jobKey2)
 
     do {
@@ -176,12 +176,12 @@ class DirectorStoreTests: XCTestCase {
     let store = try JobDirectorStore(location: location)
 
     let jobID = JobID()
-    _ = try await store.saveJob(MainJob(), id: jobID, deduplicationExpiration: .now)
+    _ = try await store.saveJob(MainJob(), as: jobID, deduplicationExpiration: .now)
 
-    let jobKey1 = JobKey(submission: jobID, fingerprint: Data(repeating: 1, count: 32))
+    let jobKey1 = JobKey(id: jobID, fingerprint: Data(repeating: 1, count: 32))
     try await store.updateValue(Data(repeating: 1, count: 10), forKey: jobKey1)
 
-    let jobKey2 = JobKey(submission: jobID, fingerprint: Data(repeating: 2, count: 32))
+    let jobKey2 = JobKey(id: jobID, fingerprint: Data(repeating: 2, count: 32))
     try await store.updateValue(Data(repeating: 2, count: 10), forKey: jobKey2)
 
     do {

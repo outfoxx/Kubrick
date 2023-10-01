@@ -114,7 +114,7 @@ public actor JobDirector: Identifiable {
   @discardableResult
   public func submit(
     _ job: some SubmittableJob,
-    id: JobID = .init(),
+    as jobID: JobID = .init(),
     deduplicationWindow: TimeDuration = .zero
   ) async throws -> Bool {
 
@@ -127,14 +127,14 @@ public actor JobDirector: Identifiable {
 
     let deduplicationExpiration = deduplicationWindow.dateAfterNow
 
-    guard try await store.saveJob(job, id: id, deduplicationExpiration: deduplicationExpiration) else {
+    guard try await store.saveJob(job, as: jobID, deduplicationExpiration: deduplicationExpiration) else {
 
-      logger.jobTrace { $0.info("[\(id)] Skipping proccessing of duplicate job") }
+      logger.jobTrace { $0.info("[\(jobID)] Skipping proccessing of duplicate job") }
 
       return false
     }
 
-    self.process(job, submission: id, deduplicationExpiration: deduplicationExpiration)
+    self.process(job, as: jobID, deduplicationExpiration: deduplicationExpiration)
 
     return true
   }
@@ -148,9 +148,9 @@ public actor JobDirector: Identifiable {
 
       let jobs = try await store.loadJobs()
 
-      for (job, id, deduplicationExpiration) in jobs {
+      for (job, jobID, deduplicationExpiration) in jobs {
 
-        self.process(job, submission: id, deduplicationExpiration: deduplicationExpiration)
+        self.process(job, as: jobID, deduplicationExpiration: deduplicationExpiration)
       }
 
       return jobs.count
@@ -214,11 +214,11 @@ public actor JobDirector: Identifiable {
 
   func resolve<J: Job>(
     _ job: J,
-    submission: JobID,
+    as jobID: JobID,
     tags: [String]
   ) async throws -> (jobKey: JobKey, result: JobResult<J.Value>) {
 
-    let (jobKey, inputResults) = try await prepare(job: job, submission: submission, tags: tags)
+    let (jobKey, inputResults) = try await prepare(job: job, as: jobID, tags: tags)
 
     do {
 
@@ -243,36 +243,36 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  private func process(_ job: some SubmittableJob, submission: JobID, deduplicationExpiration: Date) {
+  private func process(_ job: some SubmittableJob, as jobID: JobID, deduplicationExpiration: Date) {
     jobTask { [self] in
       do {
-        let (jobKey, result) = try await resolve(job, submission: submission, tags: [])
+        let (jobKey, result) = try await resolve(job, as: jobID, tags: [])
 
         if case .failure(let error) = result {
-          logger.error("[\(submission)] Job processing failed: error=\(error, privacy: .public)")
+          logger.error("[\(jobID)] Job processing failed: error=\(error, privacy: .public)")
         }
 
         // Sleep until it's time to remove job from storage
         try? await Task.sleep(until: deduplicationExpiration)
 
-        logger.jobTrace { $0.debug("[\(submission)] Removing completed job") }
+        logger.jobTrace { $0.debug("[\(jobID)] Removing completed job") }
 
         await removeJob(jobKey: jobKey)
       }
       catch is CancellationError {
 
-        logger.jobTrace { $0.debug("[\(submission)] Removing cancelled job") }
+        logger.jobTrace { $0.debug("[\(jobID)] Removing cancelled job") }
 
-        try? await store.removeJob(for: submission)
+        try? await store.removeJob(for: jobID)
       }
       catch {
 
-        logger.error("[\(submission)] Unexpected processing failure: error=\(error, privacy: .public)")
+        logger.error("[\(jobID)] Unexpected processing failure: error=\(error, privacy: .public)")
       }
     }
   }
 
-  private func resolveInputs(job: some Job, submission: JobID, tags: [String]) async throws -> ResolvedInputs {
+  private func resolveInputs(job: some Job, as jobID: JobID, tags: [String]) async throws -> ResolvedInputs {
 
     logger.jobTrace { $0.trace("Resolving inputs: job-type=\(type(of: job))") }
 
@@ -288,7 +288,7 @@ public actor JobDirector: Identifiable {
         logger.jobTrace {
           $0.trace(
             """
-            [\(submission)] Resolving input \(idx): \
+            [\(jobID)] Resolving input \(idx): \
             job-type=\(type(of: job)), \
             value-type=\(inputDescriptor.reportType)
             """
@@ -308,7 +308,7 @@ public actor JobDirector: Identifiable {
           logger.jobTrace {
             $0.trace(
               """
-              [\(submission)] Input resolve failed: \
+              [\(jobID)] Input resolve failed: \
               job-type=\(type(of: job)), \
               value-type=\(result.resultType), \
               error=\(String(describing: result))
@@ -327,7 +327,7 @@ public actor JobDirector: Identifiable {
 
     @Sendable func resolveInput(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {
 
-      let resolved = try await inputDescriptor.resolve(for: self, submission: submission, tags: tags)
+      let resolved = try await inputDescriptor.resolve(for: self, as: jobID, tags: tags)
 
       let result: AnyJobInputResult
       switch resolved.result {
@@ -345,7 +345,7 @@ public actor JobDirector: Identifiable {
   private func fingerprint(
     job: some Job,
     resolved: ResolvedInputs,
-    submission: JobID,
+    as jobID: JobID,
     tags: [String]
   ) throws -> JobKey {
 
@@ -364,14 +364,14 @@ public actor JobDirector: Identifiable {
 
     try inputHasher.update(value: tags)
 
-    return JobKey(submission: submission, fingerprint: inputHasher.finalized(), tags: tags)
+    return JobKey(id: jobID, fingerprint: inputHasher.finalized(), tags: tags)
   }
 
-  private func prepare(job: some Job, submission: JobID, tags: [String]) async throws -> (JobKey, JobInputResults) {
+  private func prepare(job: some Job, as jobID: JobID, tags: [String]) async throws -> (JobKey, JobInputResults) {
 
-    let resolvedInputs = try await resolveInputs(job: job, submission: submission, tags: tags)
+    let resolvedInputs = try await resolveInputs(job: job, as: jobID, tags: tags)
 
-    let jobKey = try fingerprint(job: job, resolved: resolvedInputs, submission: submission, tags: tags)
+    let jobKey = try fingerprint(job: job, resolved: resolvedInputs, as: jobID, tags: tags)
     let values = Dictionary(uniqueKeysWithValues: resolvedInputs.map { ($0.id, $0.result) })
 
     return (jobKey, values)
@@ -402,13 +402,13 @@ public actor JobDirector: Identifiable {
   private func removeJob(jobKey: JobKey) async {
     do {
       async let deregister: Void? = try await resultState.deregister(for: jobKey)
-      async let remove: Void? = try store.removeJob(for: jobKey.submission)
+      async let remove: Void? = try store.removeJob(for: jobKey.id)
 
       try await deregister
       try await remove
     }
     catch {
-      logger.error("[\(jobKey.submission)] Failed to remove job: error=\(error, privacy: .public)")
+      logger.error("[\(jobKey.id)] Failed to remove job: error=\(error, privacy: .public)")
     }
   }
 

@@ -35,14 +35,14 @@ struct CurrentDynamicJobDirector: DynamicJobDirector {
 
     logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
 
-    return try await director.resolve(job, submission: parentJobKey.submission, tags: parentJobKey.tags).result.get()
+    return try await director.resolve(job, as: parentJobKey.id, tags: parentJobKey.tags).result.get()
   }
 
   func run<DynamicJob: Job>(job: DynamicJob) async throws where DynamicJob.Value == NoValue {
 
     logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
 
-    _ = try await director.resolve(job, submission: parentJobKey.submission, tags: parentJobKey.tags)
+    _ = try await director.resolve(job, as: parentJobKey.id, tags: parentJobKey.tags)
   }
 
   func result<DynamicJob: Job>(for job: DynamicJob) async -> Result<DynamicJob.Value, Error> {
@@ -51,7 +51,7 @@ struct CurrentDynamicJobDirector: DynamicJobDirector {
 
     let result: JobResult<DynamicJob.Value>
     do {
-      result = try await director.resolve(job, submission: parentJobKey.submission, tags: parentJobKey.tags).result
+      result = try await director.resolve(job, as: parentJobKey.id, tags: parentJobKey.tags).result
     }
     catch {
       result = .failure(error)
@@ -71,7 +71,7 @@ struct CurrentDynamicJobDirector: DynamicJobDirector {
 
     let result: JobResult<DynamicJob.Value>
     do {
-      result = try await director.resolve(job, submission: parentJobKey.submission, tags: parentJobKey.tags).result
+      result = try await director.resolve(job, as: parentJobKey.id, tags: parentJobKey.tags).result
     }
     catch {
       result = .failure(error)

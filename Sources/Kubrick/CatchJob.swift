@@ -88,11 +88,11 @@ struct CatchJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
   func resolve(
     for director: JobDirector,
-    submission: JobID,
+    as jobID: JobID,
     tags: [String]
   ) async throws -> (id: UUID, result: JobInputResult<SourceJob.Value>) {
 
-    let resolved = try await director.resolve(job, submission: submission, tags: tags)
+    let resolved = try await director.resolve(job, as: jobID, tags: tags)
     switch resolved.result {
     case .success(let value):
       return (id, .success(value))

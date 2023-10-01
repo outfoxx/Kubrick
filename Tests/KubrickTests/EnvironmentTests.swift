@@ -50,11 +50,11 @@ public class EnvironmentTest: XCTestCase {
     let jobId = JobID(string: "1VKBaECrTxRNI2RpFkn7QT")!
 
     let mainJob = MainJob { jobKey in
-      XCTAssertEqual(jobKey.submission, jobId)
+      XCTAssertEqual(jobKey.id, jobId)
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: jobId)
+    try await director.submit(mainJob, as: jobId)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -96,7 +96,7 @@ public class EnvironmentTest: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
+    try await director.submit(mainJob, as: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -150,7 +150,7 @@ public class EnvironmentTest: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
+    try await director.submit(mainJob, as: JobID(string: "76CNUDNhaVlaho9jxsttRD")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }

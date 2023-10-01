@@ -109,7 +109,7 @@ class URLSessionJobManagerTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [progressed, executed], timeout: 3)
   }
@@ -183,7 +183,7 @@ class URLSessionJobManagerTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -242,7 +242,7 @@ class URLSessionJobManagerTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -331,7 +331,7 @@ class URLSessionJobManagerTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [progressed, executed], timeout: 3)
   }
@@ -413,7 +413,7 @@ class URLSessionJobManagerTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -480,7 +480,7 @@ class URLSessionJobManagerTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: id)
+    try await director.submit(mainJob, as: id)
 
     await fulfillment(of: [executed], timeout: 3)
   }

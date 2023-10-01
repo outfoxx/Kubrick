@@ -133,7 +133,7 @@ class ErrorTests: XCTestCase {
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    try await director.submit(MainJob(), id: JobID(string: "1hN7K3p95FQHn3CD2n7WW7")!)
+    try await director.submit(MainJob(), as: JobID(string: "1hN7K3p95FQHn3CD2n7WW7")!)
 
     try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
@@ -192,7 +192,7 @@ class ErrorTests: XCTestCase {
     let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    try await director.submit(MainJob { onCancelled.fulfill() }, id: JobID(string: "75AtTO40PzFkM11yULcgD")!)
+    try await director.submit(MainJob { onCancelled.fulfill() }, as: JobID(string: "75AtTO40PzFkM11yULcgD")!)
 
     await fulfillment(of: [onCancelled], timeout: 3)
   }
@@ -245,7 +245,7 @@ class ErrorTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: JobID(string: "5u91kxIdJ6MwUrpf1xRWqS")!)
+    try await director.submit(mainJob, as: JobID(string: "5u91kxIdJ6MwUrpf1xRWqS")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -311,7 +311,7 @@ class ErrorTests: XCTestCase {
       executed.fulfill()
     }
 
-    try await director.submit(mainJob, id: JobID(string: "4uZPZbKGZZWstJe7rEdW6c")!)
+    try await director.submit(mainJob, as: JobID(string: "4uZPZbKGZZWstJe7rEdW6c")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }

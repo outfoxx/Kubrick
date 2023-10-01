@@ -18,7 +18,7 @@ class ExternalJobKeyTests: XCTestCase {
 
   func test_RoundTripWithoutTags() {
 
-    let jobKey = JobKey(submission: .generate(), fingerprint: SHA256().finalized(), tags: [])
+    let jobKey = JobKey(id: .generate(), fingerprint: SHA256().finalized(), tags: [])
     let externalJobKey = ExternalJobKey(directorId: .generate(), jobKey: jobKey)
 
     print(externalJobKey)
@@ -28,7 +28,7 @@ class ExternalJobKeyTests: XCTestCase {
 
   func test_RoundTripWithTags() {
 
-    let jobKey = JobKey(submission: .generate(), fingerprint: SHA256().finalized(), tags: ["test-1", "test-2"])
+    let jobKey = JobKey(id: .generate(), fingerprint: SHA256().finalized(), tags: ["test-1", "test-2"])
     let externalJobKey = ExternalJobKey(directorId: .generate(), jobKey: jobKey)
 
     print(externalJobKey)

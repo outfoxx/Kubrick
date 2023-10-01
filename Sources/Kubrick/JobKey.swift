@@ -15,12 +15,12 @@ import RegexBuilder
 
 
 public struct JobKey: Equatable, Hashable, Codable {
-  public var submission: JobID
+  public var id: JobID
   public var fingerprint: Data
   public var tags: [String]
 
-  public init(submission: JobID, fingerprint: Data, tags: [String] = []) {
-    self.submission = submission
+  public init(id: JobID, fingerprint: Data, tags: [String] = []) {
+    self.id = id
     self.fingerprint = fingerprint
     self.tags = tags
   }
@@ -32,7 +32,7 @@ extension JobKey: CustomStringConvertible {
   public var description: String {
     let fingerprint = fingerprint.base64UrlEncodedString()
     let tags = tags.isEmpty ? "" : "#\(tags.joined(separator: ","))"
-    return "\(Self.scheme)://\(submission)/\(fingerprint)\(tags)"
+    return "\(Self.scheme)://\(id)/\(fingerprint)\(tags)"
   }
 
   public init?(string: String) {
@@ -44,7 +44,7 @@ extension JobKey: CustomStringConvertible {
     else {
       return nil
     }
-    self.submission = jobID
+    self.id = jobID
     self.fingerprint = jobFingerprint
     self.tags = tags.split(separator: ",").map(String.init)
   }

@@ -175,7 +175,7 @@ class DirectorTests: XCTestCase {
 
     func submit() async throws {
 
-      try await director.submit(mainJob, id: jobID, deduplicationWindow: .seconds(0.5))
+      try await director.submit(mainJob, as: jobID, deduplicationWindow: .seconds(0.5))
 
       try await Task.sleep(seconds: 0.1)
     }
@@ -221,7 +221,7 @@ class DirectorTests: XCTestCase {
 
     func submit() async throws {
 
-      try await director.submit(mainJob, id: jobID, deduplicationWindow: .seconds(30))
+      try await director.submit(mainJob, as: jobID, deduplicationWindow: .seconds(30))
 
       try await Task.sleep(seconds: 0.5)
     }

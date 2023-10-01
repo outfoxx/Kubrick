@@ -76,7 +76,7 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
   func resolve(
     for director: JobDirector,
-    submission: JobID,
+    as jobID: JobID,
     tags: [String]
   ) async throws -> (id: UUID, result: JobResult<SourceJob.Value>) {
 
@@ -85,7 +85,7 @@ struct RetryingJobInputDescriptor<SourceJob: Job>: JobInputDescriptor {
 
     while true {
 
-      let resolved = try await director.resolve(job, submission: submission, tags: tags + ["retry-attempt-\(attempt)"])
+      let resolved = try await director.resolve(job, as: jobID, tags: tags + ["retry-attempt-\(attempt)"])
       switch resolved {
       case (_, .success(let success)):
         return (id, .success(success))
