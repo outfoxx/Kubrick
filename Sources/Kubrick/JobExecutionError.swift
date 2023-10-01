@@ -11,7 +11,7 @@
 import Foundation
 
 
-public enum JobExecutionError: JobError {
+public enum JobExecutionError: Error {
 
   public enum InvariantViolation: Codable {
     case inputResultMissing
@@ -26,6 +26,11 @@ public enum JobExecutionError: JobError {
   public static func unboundInputs(jobType: Any.Type, inputTypes: [Any.Type]) -> Self {
     return .unboundInputs(jobType: String(reflecting: jobType), inputTypes: inputTypes.map { String(reflecting: $0) })
   }
+
+}
+
+
+extension JobExecutionError: Codable {
 
   enum CodingKeys: CodingKey {
     case invariantViolation
