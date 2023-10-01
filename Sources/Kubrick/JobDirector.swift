@@ -112,18 +112,31 @@ public actor JobDirector: Identifiable {
   }
 
   @discardableResult
-  public func submit(_ job: some SubmittableJob, id: JobID = .init(), expiration: Date = .now) async -> Bool {
-    do {
+  public func submit(
+    _ job: some SubmittableJob,
+    id: JobID = .init(),
+    deduplicationWindow: TimeDuration = .zero
+  ) async throws -> Bool {
 
-      return try await self.storeAndProcess(job, id: id, expiration: expiration)
-      
+    guard state == .running else {
+
+      logger.error("Job submitted in '\(self.state)' state")
+
+      throw JobDirectorError.invalidDirectorState
     }
-    catch {
 
-      logger.error("[\(id)] Submission failed: error=\(error, privacy: .public)")
+    let deduplicationExpiration = deduplicationWindow.dateAfterNow
+
+    guard try await store.saveJob(job, id: id, deduplicationExpiration: deduplicationExpiration) else {
+
+      logger.jobTrace { $0.info("[\(id)] Skipping proccessing of duplicate job") }
 
       return false
     }
+
+    self.process(job, submission: id, deduplicationExpiration: deduplicationExpiration)
+
+    return true
   }
 
   @discardableResult
@@ -135,9 +148,9 @@ public actor JobDirector: Identifiable {
 
       let jobs = try await store.loadJobs()
 
-      for (job, id, expiration) in jobs {
+      for (job, id, deduplicationExpiration) in jobs {
 
-        self.process(job, submission: id, expiration: expiration)
+        self.process(job, submission: id, deduplicationExpiration: deduplicationExpiration)
       }
 
       return jobs.count
@@ -230,28 +243,7 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  private func storeAndProcess(_ job: some SubmittableJob, id: JobID, expiration: Date) async throws -> Bool {
-
-    guard state == .running else {
-
-      logger.error("Job submitted in '\(self.state)' state")
-
-      throw JobDirectorError.invalidDirectorState
-    }
-
-    guard try await store.saveJob(job, id: id, expiration: expiration) else {
-
-      logger.jobTrace { $0.info("[\(id)] Skipping proccessing of duplicate job") }
-
-      return false
-    }
-
-    self.process(job, submission: id, expiration: expiration)
-
-    return true
-  }
-
-  private func process(_ job: some SubmittableJob, submission: JobID, expiration: Date) {
+  private func process(_ job: some SubmittableJob, submission: JobID, deduplicationExpiration: Date) {
     jobTask { [self] in
       do {
         let (jobKey, result) = try await resolve(job, submission: submission, tags: [])
@@ -260,7 +252,8 @@ public actor JobDirector: Identifiable {
           logger.error("[\(submission)] Job processing failed: error=\(error, privacy: .public)")
         }
 
-        try? await Task.sleep(until: expiration)
+        // Sleep until it's time to remove job from storage
+        try? await Task.sleep(until: deduplicationExpiration)
 
         logger.jobTrace { $0.debug("[\(submission)] Removing completed job") }
 

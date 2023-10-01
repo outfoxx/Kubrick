@@ -68,7 +68,7 @@ class MapTests: XCTestCase {
       executed.fulfill()
     }
 
-    await director.submit(mainJob, id: JobID(string: "5Al02cjKTL9tmf2tT3uhEy")!)
+    try await director.submit(mainJob, id: JobID(string: "5Al02cjKTL9tmf2tT3uhEy")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -122,7 +122,7 @@ class MapTests: XCTestCase {
       executed.fulfill()
     }
 
-    await director.submit(mainJob, id: JobID(string: "443EQfOK5xoUbZsPs6tuBW")!)
+    try await director.submit(mainJob, id: JobID(string: "443EQfOK5xoUbZsPs6tuBW")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -176,7 +176,7 @@ class MapTests: XCTestCase {
       executed.fulfill()
     }
 
-    await director.submit(mainJob, id: JobID(string: "6qkMuVF6Vtim7TEd3OXvIf")!)
+    try await director.submit(mainJob, id: JobID(string: "6qkMuVF6Vtim7TEd3OXvIf")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }

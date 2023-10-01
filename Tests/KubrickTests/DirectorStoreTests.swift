@@ -33,8 +33,8 @@ class DirectorStoreTests: XCTestCase {
 
     let data = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
 
-    let jobSaved = try await store.saveJob(MainJob(), id: id, expiration: .now)
-    XCTAssertTrue(jobSaved)
+    let jobSaved = try await store.saveJob(MainJob(), id: id, deduplicationExpiration: .now)
+    XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(data, forKey: key)
 
@@ -58,8 +58,8 @@ class DirectorStoreTests: XCTestCase {
     let fingerprint = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
     let key = JobKey(submission: id, fingerprint: fingerprint)
 
-    let jobSaved = try await store.saveJob(MainJob(), id: id, expiration: .now)
-    XCTAssertTrue(jobSaved)
+    let jobSaved = try await store.saveJob(MainJob(), id: id, deduplicationExpiration: .now)
+    XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(Data(), forKey: key)
 
@@ -100,8 +100,8 @@ class DirectorStoreTests: XCTestCase {
     let data2 = try CBOREncoder.default.encode(Int.random(in: .min ... .max))
     let data3 = try CBOREncoder.default.encode(Int.random(in: .min ... .max))
 
-    let jobSaved = try await store.saveJob(MainJob(), id: id, expiration: .now)
-    XCTAssertTrue(jobSaved)
+    let jobSaved = try await store.saveJob(MainJob(), id: id, deduplicationExpiration: .now)
+    XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(data1, forKey: key1)
     try await store.updateValue(data2, forKey: key2)
@@ -148,7 +148,7 @@ class DirectorStoreTests: XCTestCase {
     let store = try JobDirectorStore(location: location)
 
     let jobID = JobID()
-    _ = try await store.saveJob(MainJob(), id: jobID, expiration: .now)
+    _ = try await store.saveJob(MainJob(), id: jobID, deduplicationExpiration: .now)
 
     let jobKey1 = JobKey(submission: jobID, fingerprint: Data(repeating: 1, count: 32))
     try await store.updateValue(Data(repeating: 1, count: 10), forKey: jobKey1)
@@ -176,7 +176,7 @@ class DirectorStoreTests: XCTestCase {
     let store = try JobDirectorStore(location: location)
 
     let jobID = JobID()
-    _ = try await store.saveJob(MainJob(), id: jobID, expiration: .now)
+    _ = try await store.saveJob(MainJob(), id: jobID, deduplicationExpiration: .now)
 
     let jobKey1 = JobKey(submission: jobID, fingerprint: Data(repeating: 1, count: 32))
     try await store.updateValue(Data(repeating: 1, count: 10), forKey: jobKey1)

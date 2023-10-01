@@ -27,37 +27,37 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
       case id
       case type
       case data
-      case expiration
+      case deduplicationExpiration
     }
 
     var id: UUID
     var type: String
     var data: Data
-    var expiration: Date
+    var deduplicationExpiration: Date
 
-    init(id: JobID, type: String, data: Data, expiration: Date) {
-      self.init(id: id.uuid, type: type, data: data, expiration: expiration)
+    init(id: JobID, type: String, data: Data, deduplicationExpiration: Date) {
+      self.init(id: id.uuid, type: type, data: data, deduplicationExpiration: deduplicationExpiration)
     }
 
-    init(id: UUID, type: String, data: Data, expiration: Date) {
+    init(id: UUID, type: String, data: Data, deduplicationExpiration: Date) {
       self.id = id
       self.type = type
       self.data = data
-      self.expiration = expiration
+      self.deduplicationExpiration = deduplicationExpiration
     }
 
     init(row: Row) throws {
       id = row[Columns.id]
       type = row[Columns.type]
       data = row[Columns.data]
-      expiration = row[Columns.expiration]
+      deduplicationExpiration = row[Columns.deduplicationExpiration]
     }
 
     func encode(to container: inout PersistenceContainer) throws {
       container[Columns.id] = id
       container[Columns.type] = type
       container[Columns.data] = data
-      container[Columns.expiration] = expiration
+      container[Columns.deduplicationExpiration] = deduplicationExpiration
     }
 
     static func filter(id: JobID) -> QueryInterfaceRequest<Self> {
@@ -172,19 +172,19 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
     }
     return try entries.map {
       let type = try jobTypeResolver.resolve(jobTypeId: $0.type)
-      return (try type.init(from: $0.data, using: jobDecoder), JobID(uuid: $0.id), $0.expiration)
+      return (try type.init(from: $0.data, using: jobDecoder), JobID(uuid: $0.id), $0.deduplicationExpiration)
     }
   }
 
-  func saveJob(_ job: some SubmittableJob, id: JobID, expiration: Date) async throws -> Bool {
+  func saveJob(_ job: some SubmittableJob, id: JobID, deduplicationExpiration: Date) async throws -> Bool {
     try await dbQueue.write { db in
 
       let data = try job.encode(using: self.jobEncoder)
 
       if let current = try SubmittedJobEntry.filter(id: id).fetchOne(db) {
 
-        if current.expiration > .now {
-      
+        if current.deduplicationExpiration > .now {
+
           // Return current unexpired entry
           return false
         }
@@ -195,8 +195,13 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
 
       // Insert or update entry
 
-      let entry = SubmittedJobEntry(id: id.uuid, type: type(of: job).typeId, data: data, expiration: expiration)
+      let entry = SubmittedJobEntry(id: id.uuid,
+                                    type: type(of: job).typeId,
+                                    data: data,
+                                    deduplicationExpiration: deduplicationExpiration)
+
       try entry.save(db, onConflict: .replace)
+
       return true
     }
   }
@@ -273,7 +278,7 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
         td.column(SubmittedJobEntry.Columns.id.rawValue, .blob)
         td.column(SubmittedJobEntry.Columns.type.rawValue, .text)
         td.column(SubmittedJobEntry.Columns.data.rawValue, .blob)
-        td.column(SubmittedJobEntry.Columns.expiration.rawValue, .datetime)
+        td.column(SubmittedJobEntry.Columns.deduplicationExpiration.rawValue, .datetime)
         td.primaryKey([SubmittedJobEntry.Columns.id.rawValue])
       }
 

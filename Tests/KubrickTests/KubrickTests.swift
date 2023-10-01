@@ -47,7 +47,7 @@ final class KubrickTests: XCTestCase {
 
       print("📤 Submitting job to director")
 
-      await director.submit(ProcessMessageJob(summary: summary), id: JobID(string: "32SrLZWr4mC3rvXDlQ8Jem")!)
+      try await director.submit(ProcessMessageJob(summary: summary), id: JobID(string: "32SrLZWr4mC3rvXDlQ8Jem")!)
     }
 
     try await director.waitForCompletionOfCurrentJobs(timeout: 30 * 60)

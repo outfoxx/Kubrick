@@ -69,7 +69,7 @@ class DirectorTests: XCTestCase {
       executed.fulfill()
     }
 
-    await director.submit(mainJob)
+    try await director.submit(mainJob)
 
     try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
@@ -129,7 +129,7 @@ class DirectorTests: XCTestCase {
       executed.fulfill()
     }
 
-    await director.submit(mainJob)
+    try await director.submit(mainJob)
 
     try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
@@ -175,7 +175,7 @@ class DirectorTests: XCTestCase {
 
     func submit() async throws {
 
-      await director.submit(mainJob, id: jobID, expiration: .now.addingTimeInterval(0.5))
+      try await director.submit(mainJob, id: jobID, deduplicationWindow: .seconds(0.5))
 
       try await Task.sleep(seconds: 0.1)
     }
@@ -221,7 +221,7 @@ class DirectorTests: XCTestCase {
 
     func submit() async throws {
 
-      await director.submit(mainJob, id: jobID, expiration: .now.addingTimeInterval(30))
+      try await director.submit(mainJob, id: jobID, deduplicationWindow: .seconds(30))
 
       try await Task.sleep(seconds: 0.5)
     }

@@ -11,7 +11,7 @@
 import Foundation
 
 
-typealias SubmittedJob = (job: any SubmittableJob, id: JobID, expiration: Date)
+typealias SubmittedJob = (job: any SubmittableJob, id: JobID, deduplicationExpiration: Date)
 
 
 protocol SubmittableJobStore {
@@ -20,7 +20,7 @@ protocol SubmittableJobStore {
 
   func loadJobs() async throws -> [SubmittedJob]
 
-  func saveJob(_ job: some SubmittableJob, id: JobID, expiration: Date) async throws -> Bool
+  func saveJob(_ job: some SubmittableJob, id: JobID, deduplicationExpiration: Date) async throws -> Bool
 
   func removeJob(for id: JobID) async throws
 
