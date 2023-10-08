@@ -1,5 +1,5 @@
 //
-//  RetryTests.swift
+//  RetryJobTests.swift
 //  Kubrick
 //
 //  Copyright © 2023 Outfox, inc.
@@ -11,10 +11,11 @@
 import AsyncObjects
 import Foundation
 @testable import Kubrick
+import PotentCodables
 import XCTest
 
 
-class RetryTests: XCTestCase {
+class RetryJobTests: XCTestCase {
 
   enum TestError: Error {
     case lowCount
@@ -28,24 +29,23 @@ class RetryTests: XCTestCase {
       return count
     }
   }
+  
+  var director: JobDirector!
+
+  override func tearDown() async throws {
+    if let director {
+      try await director.stop()
+      self.director = nil
+    }
+  }
 
   func test_RetryTree() async throws {
 
     struct DependencyJob: ExecutableJob {
       @JobInput var id = UniqueID()
-
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: () -> Void
-
-      init(id: UniqueID = UniqueID(), onExecute: @escaping () -> Void) {
-        self.id = id
-        self.onExecute = onExecute
-      }
-
       func execute() async throws {
-        onExecute()
+        NotificationCenter.default.post(name: .init("test_RetryTree.dep"), object: nil)
       }
-
     }
 
     struct RetriedJob: ResultJob {
@@ -53,12 +53,10 @@ class RetryTests: XCTestCase {
       @JobInput var dep: NoValue
       let counter = Counter()
       let failUnder: Int
-
-      init(failUnder: Int, onDependencyExecute: @escaping () -> Void) {
+      init(failUnder: Int) {
         self.failUnder = failUnder
-        self.$dep.bind(job: DependencyJob(onExecute: onDependencyExecute))
+        self.$dep.bind(job: DependencyJob())
       }
-
       func execute() async throws -> Int {
         let count = await counter.increment()
         if count < failUnder {
@@ -71,43 +69,32 @@ class RetryTests: XCTestCase {
     struct MainJob: SubmittableJob {
       @JobInput var count1: Int
       @JobInput var count2: Int
-
-      init(onDependencyExecute: @escaping () -> Void) {
+      init() {
         self.$count1.bind {
-          RetriedJob(failUnder: 4, onDependencyExecute: onDependencyExecute)
+          RetriedJob(failUnder: 4)
             .retry(maxAttempts: 10)
         }
         self.$count2.bind {
-          RetriedJob(failUnder: 1, onDependencyExecute: onDependencyExecute)
+          RetriedJob(failUnder: 1)
             .retry(maxAttempts: 10)
         }
       }
-
-      func execute() async {
-      }
-
-      init(from: Data, using: any JobDecoder) throws {}
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      func execute() async {}
+      init(from: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let depExecuted = expectation(description: "DependencyJob executed")
+    let depExecuted = expectation(forNotification: .init("test_RetryTree.dep"), object: nil)
     depExecuted.expectedFulfillmentCount = 5
 
-    let id = JobID()
-
-    let mainJob = MainJob {
-      print("👍 fulfilling")
-      depExecuted.fulfill()
-    }
-
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob(), deduplicationWindow: .seconds(20))
 
     await fulfillment(of: [depExecuted], timeout: 3)
   }
@@ -118,11 +105,9 @@ class RetryTests: XCTestCase {
       @JobInput var id = UniqueID()
       let counter = Counter()
       let failUnder: Int
-
       init(failUnder: Int) {
         self.failUnder = failUnder
       }
-
       func execute() async throws -> Int {
         let count = await counter.increment()
         if count < failUnder {
@@ -135,12 +120,7 @@ class RetryTests: XCTestCase {
     struct MainJob: SubmittableJob {
       @JobInput var count1: Int
       @JobInput var count2: Int
-
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Int) -> Void
-
-      init(onExecute: @escaping (Int) -> Void) {
-        self.onExecute = onExecute
+      init() {
         self.$count1.bind {
           RetriedJob(failUnder: 4)
             .retry(maxAttempts: 10)
@@ -152,32 +132,27 @@ class RetryTests: XCTestCase {
       }
 
       func execute() async {
-        onExecute(count1 + count2)
+        NotificationCenter.default.post(name: .init("test_RetryUniqueInputs.main"),
+                                        object: nil,
+                                        userInfo: ["total": count1 + count2])
       }
 
-      init(from: Data, using: any JobDecoder) throws {
-        onExecute = { _ in }
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
-
-    let id = JobID()
-
-    let mainJob = MainJob {
-      XCTAssertEqual($0, 5)
-      executed.fulfill()
+    let executed = expectation(forNotification: .init("test_RetryUniqueInputs.main"), object: nil) { not in
+      return (not.userInfo?["total"] as? Int) == 5
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob())
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -186,11 +161,6 @@ class RetryTests: XCTestCase {
 
     struct RetriedJob: ResultJob {
       let counter: Counter
-
-      init(counter: Counter) {
-        self.counter = counter
-      }
-
       func execute() async throws -> Int {
         let count = await counter.increment()
         if count < 4 {
@@ -203,12 +173,8 @@ class RetryTests: XCTestCase {
     struct MainJob: SubmittableJob {
       @JobInput var count1: Int
       @JobInput var count2: Int
-
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Int) -> Void
-
-      init(counter: Counter, onExecute: @escaping (Int) -> Void) {
-        self.onExecute = onExecute
+      init() {
+        let counter = Counter()
         self.$count1.bind {
           RetriedJob(counter: counter)
             .retry(maxAttempts: 10)
@@ -218,34 +184,27 @@ class RetryTests: XCTestCase {
             .retry(maxAttempts: 10)
         }
       }
-
       func execute() async {
-        onExecute(count1 + count2)
+        NotificationCenter.default.post(name: .init("test_RetryDuplicateInputs.main"),
+                                        object: nil,
+                                        userInfo: ["total": count1 + count2])
       }
-
-      init(from: Data, using: any JobDecoder) throws {
-        onExecute = { _ in }
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
-
-    let id = JobID()
-    let counter = Counter()
-    let mainJob = MainJob(counter: counter) {
-      XCTAssertEqual($0, 8)
-      executed.fulfill()
+    let executed = expectation(forNotification: .init("test_RetryDuplicateInputs.main"), object: nil) { not in
+      return (not.userInfo?["total"] as? Int) == 8
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob())
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -260,48 +219,38 @@ class RetryTests: XCTestCase {
 
     struct MainJob: SubmittableJob {
       @JobInput var count: Result<Int, Error>
-
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Result<Int, Error>) -> Void
-
-      init(onExecute: @escaping (Result<Int, Error>) -> Void) {
-        self.onExecute = onExecute
+      init() {
         self.$count.bind {
           ThrowingJob()
             .retry(maxAttempts: 2)
             .mapToResult()
         }
       }
-
       func execute() async {
-        onExecute(count)
+        NotificationCenter.default.post(name: .init("test_RetriesFail.main"), object: nil, userInfo: ["count": count])
       }
-
-      init(from: Data, using: any JobDecoder) throws {
-        onExecute = { _ in }
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from: Decoder) throws { self.init() }
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
-
-    let id = JobID()
-    let mainJob = MainJob {
-      guard case .failure(let error) = $0 else {
-        return XCTFail("Input should have failed")
+    let executed = expectation(forNotification: .init("test_RetriesFail.main"), object: nil) { not in
+      guard 
+        let count = not.userInfo?["count"] as? Result<Int, Error>,
+        case .failure(let error) = count
+      else {
+        return false
       }
-      XCTAssertEqual(error as NSError, TestError.lowCount as NSError)
-      executed.fulfill()
+      return error as NSError == TestError.lowCount as NSError
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob())
 
     await fulfillment(of: [executed], timeout: 3)
   }

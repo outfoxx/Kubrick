@@ -1,5 +1,5 @@
 //
-//  InjectTests.swift
+//  JobInjectTests.swift
 //  Kubrick
 //
 //  Copyright © 2023 Outfox, inc.
@@ -13,7 +13,7 @@ import Kubrick
 import XCTest
 
 
-class InjectTests: XCTestCase {
+class JobInjectTests: XCTestCase {
 
   func test_SimpleTypeInjectWithoutTags() {
 

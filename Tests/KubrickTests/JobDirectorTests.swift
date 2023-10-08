@@ -1,5 +1,5 @@
 //
-//  DirectorTests.swift
+//  JobDirectorTests.swift
 //  Kubrick
 //
 //  Copyright © 2023 Outfox, inc.
@@ -10,66 +10,52 @@
 
 import Foundation
 @testable import Kubrick
+import PotentCodables
 import XCTest
 
 
-class DirectorTests: XCTestCase {
+class JobDirectorTests: XCTestCase {
+
+  var director: JobDirector!
+
+  override func tearDown() async throws {
+    if let director {
+      try await director.stop()
+      self.director = nil
+    }
+  }
 
   func test_DynamicNonDuplicateJobs() async throws {
 
     struct DynamicJob: ExecutableJob {
-
-      @JobInput var id: UniqueID
-      let onExecute: () -> Void
-
-      init(onExecute: @escaping () -> Void) {
-        self.id = UniqueID()
-        self.onExecute = onExecute
-      }
-
+      @JobInput var id: UniqueID = UniqueID()
       func execute() async throws {
-        onExecute()
+        NotificationCenter.default.post(name: .init("test_DynamicNonDuplicateJobs.dynamic.executed"), object: nil)
       }
-
     }
 
-    struct MainJob: SubmittableJob {
-
+    struct MainJob: SubmittableJob, Codable {
       @JobEnvironmentValue(\.dynamicJobs) var dynamicJobs
-
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: () -> Void
-
-      init(onExecute: @escaping () -> Void) {
-        self.onExecute = onExecute
-      }
-
       func execute() async {
-        _ = await dynamicJobs.result(for: DynamicJob(onExecute: onExecute))
-        _ = await dynamicJobs.result(for: DynamicJob(onExecute: onExecute))
+        _ = await dynamicJobs.result(for: DynamicJob())
+        _ = await dynamicJobs.result(for: DynamicJob())
       }
-
-      init(from: Data, using: any JobDecoder) throws {
-        onExecute = {}
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init() {}
+      init(from decoder: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
+    let executed = expectation(forNotification: .init("test_DynamicNonDuplicateJobs.dynamic.executed"), object: nil)
     executed.expectedFulfillmentCount = 2
 
-    let mainJob = MainJob {
-      executed.fulfill()
-    }
-
-    try await director.submit(mainJob)
+    try await director.submit(MainJob())
 
     try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
@@ -79,57 +65,34 @@ class DirectorTests: XCTestCase {
   func test_DynamicDuplicateJobs() async throws {
 
     struct DynamicJob: ExecutableJob {
-
-      let onExecute: () -> Void
-
-      init(onExecute: @escaping () -> Void) {
-        self.onExecute = onExecute
-      }
-
       func execute() async throws {
-        onExecute()
+        NotificationCenter.default.post(name: .init("test_DynamicDuplicateJobs.dynamic.executed"), object: nil)
       }
-
     }
 
     struct MainJob: SubmittableJob {
-
       @JobEnvironmentValue(\.dynamicJobs) var dynamicJobs
-
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: () -> Void
-
-      init(onExecute: @escaping () -> Void) {
-        self.onExecute = onExecute
-      }
-
       func execute() async {
-        let job = DynamicJob(onExecute: onExecute)
+        let job = DynamicJob()
         _ = await dynamicJobs.result(for: job)
         _ = await dynamicJobs.result(for: job)
       }
-
-      init(from: Data, using: any JobDecoder) throws {
-        onExecute = {}
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init() {}
+      init(from decoder: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
+    let executed = expectation(forNotification: .init("test_DynamicDuplicateJobs.dynamic.executed"), object: nil)
     executed.expectedFulfillmentCount = 1
 
-    let mainJob = MainJob {
-      executed.fulfill()
-    }
-
-    try await director.submit(mainJob)
+    try await director.submit(MainJob())
 
     try await director.waitForCompletionOfCurrentJobs(timeout: 3)
 
@@ -139,44 +102,29 @@ class DirectorTests: XCTestCase {
   func test_Deduplication() async throws {
 
     struct MainJob: SubmittableJob {
-
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: () -> Void
-
-      init(onExecute: @escaping () -> Void) {
-        self.onExecute = onExecute
-      }
-
       func execute() async {
-        onExecute()
+        NotificationCenter.default.post(name: .init("test_Deduplication.main.executed"), object: nil)
       }
-
-      init(from: Data, using: any JobDecoder) throws {
-        onExecute = {}
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init() {}
+      init(from decoder: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
+    let executed = expectation(forNotification: .init("test_Deduplication.main.executed"), object: nil)
     executed.expectedFulfillmentCount = 2
 
-    let mainJob = MainJob {
-      executed.fulfill()
-    }
-
+    let mainJob = MainJob()
     let jobID = JobID(string: "7UDE7RgDFjRbZYqVpowU1m")!
 
     func submit() async throws {
-
       try await director.submit(mainJob, as: jobID, deduplicationWindow: .seconds(0.5))
-
       try await Task.sleep(seconds: 0.1)
     }
 
@@ -201,8 +149,10 @@ class DirectorTests: XCTestCase {
     struct MainJob: SubmittableJob {
       init() {}
       func execute() async { print("🎉 Executing") }
-      init(from: Data, using: any JobDecoder) throws {}
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from decoder: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -211,9 +161,9 @@ class DirectorTests: XCTestCase {
 
     let directorID = JobDirector.ID("1EjQHqaO86sbI65hHQ4KqW")!
 
-    let director = try JobDirector(id: directorID,
-                                   directory: FileManager.default.temporaryDirectory,
-                                   typeResolver: typeResolver)
+    director = try JobDirector(id: directorID,
+                               directory: FileManager.default.temporaryDirectory,
+                               typeResolver: typeResolver)
 
     let mainJob = MainJob()
 

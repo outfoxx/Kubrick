@@ -44,27 +44,38 @@ public actor JobDirector: Identifiable {
   @TaskLocal static var currentJobInputResults: JobInputResults?
 
   public nonisolated let id: ID
+  public nonisolated let directorType: JobDirectorType
   public nonisolated let injected: JobInjectValues
 
-  private var tasks: [UUID: JobTaskFuture] = [:]
-  private let tasksCancellation = CancellationSource()
+  internal let store: JobDirectorStore
+
+  private let assistantsWatcher: AssistantsWatcher
   private let resultState: RegisterCache<JobKey, Data>
-  private let store: JobDirectorStore
-  private let jobEncoder: any JobEncoder
-  private let jobDecoder: any JobDecoder
+  private let jobEncoder: CBOREncoder
+  private let jobDecoder: CBORDecoder
+  private let tasksCancellation = CancellationSource()
+  private var tasks: [UUID: JobTaskFuture] = [:]
   private var state: State
 
   public init(
     id: JobDirectorID = .generate(),
     directory: URL,
+    type: JobDirectorType = .principal,
     typeResolver: SubmittableJobTypeResolver & JobErrorTypeResolver
   ) throws {
-    try self.init(id: id, directory: directory, jobTypeResolver: typeResolver, errorTypeResolver: typeResolver)
+    try self.init(
+      id: id,
+      directory: directory,
+      type: type,
+      jobTypeResolver: typeResolver,
+      errorTypeResolver: typeResolver
+    )
   }
 
   public init(
-    id: JobDirectorID = .generate(),
+    id: JobDirectorID,
     directory: URL,
+    type: JobDirectorType,
     jobTypeResolver: SubmittableJobTypeResolver,
     errorTypeResolver: JobErrorTypeResolver
   ) throws {
@@ -76,19 +87,24 @@ public actor JobDirector: Identifiable {
 
     let cborEncoder = CBOREncoder()
     cborEncoder.deterministic = true
-    cborEncoder.userInfo[JobErrorBox.typeResolverKey] = allErrorTypesResolver
+    cborEncoder.userInfo[submittableJobTypeResolverKey] = jobTypeResolver
+    cborEncoder.userInfo[jobErrorTypeResolverKey] = allErrorTypesResolver
 
     let cborDecoder = CBORDecoder()
-    cborDecoder.userInfo[JobErrorBox.typeResolverKey] = allErrorTypesResolver
+    cborDecoder.userInfo[submittableJobTypeResolverKey] = jobTypeResolver
+    cborDecoder.userInfo[jobErrorTypeResolverKey] = allErrorTypesResolver
 
-    let store = try JobDirectorStore(location: Self.storeLocation(id: id, directory: directory),
-                                     jobTypeResolver: jobTypeResolver,
-                                     jobEncoder: cborEncoder,
-                                     jobDecoder: cborDecoder)
+    let store = try JobDirectorStore(location: Self.storeLocation(id: id, in: directory, type: type),
+                                     jobTypeResolver: jobTypeResolver)
+
+    let assistantsWatcher =
+      try AssistantsWatcher(assistantsLocation: try Self.assistantsLocation(id: id, in: directory))
 
     self.init(
       id: id,
+      type: type,
       store: store,
+      assistantsWatcher: assistantsWatcher,
       errorTypeResolver: errorTypeResolver,
       jobEncoder: cborEncoder,
       jobDecoder: cborDecoder
@@ -97,13 +113,17 @@ public actor JobDirector: Identifiable {
 
   init(
     id: ID,
+    type: JobDirectorType,
     store: JobDirectorStore,
+    assistantsWatcher: AssistantsWatcher,
     errorTypeResolver: JobErrorTypeResolver,
-    jobEncoder: any JobEncoder,
-    jobDecoder: any JobDecoder
+    jobEncoder: CBOREncoder,
+    jobDecoder: CBORDecoder
   ) {
     self.id = id
+    self.directorType = type
     self.store = store
+    self.assistantsWatcher = assistantsWatcher
     self.injected = JobInjectValues()
     self.resultState = RegisterCache(store: store)
     self.jobEncoder = jobEncoder
@@ -117,43 +137,32 @@ public actor JobDirector: Identifiable {
     as jobID: JobID = .init(),
     deduplicationWindow: TimeDuration = .zero
   ) async throws -> Bool {
-
-    guard state == .running else {
-
-      logger.error("Job submitted in '\(self.state)' state")
-
-      throw JobDirectorError.invalidDirectorState
-    }
-
-    let deduplicationExpiration = deduplicationWindow.dateAfterNow
-
-    guard try await store.saveJob(job, as: jobID, deduplicationExpiration: deduplicationExpiration) else {
-
-      logger.jobTrace { $0.info("[\(jobID)] Skipping proccessing of duplicate job") }
-
-      return false
-    }
-
-    self.process(job, as: jobID, deduplicationExpiration: deduplicationExpiration)
-
-    return true
+    try await process(submitted: job, as: jobID, deduplicationExpiration: deduplicationWindow.dateAfterNow)
   }
 
-  @discardableResult
-  public func start() async throws -> Int {
-
-    state = .running
-
+  public func start() async throws {
     do {
 
-      let jobs = try await store.loadJobs()
+      if directorType.isPrincipal {
 
-      for (job, jobID, deduplicationExpiration) in jobs {
+        // Load and start jobs currently in store
 
-        self.process(job, as: jobID, deduplicationExpiration: deduplicationExpiration)
+        let jobs = try await store.loadJobs()
+
+        for (job, jobID, deduplicationExpiration) in jobs {
+
+          self.process(saved: job, as: jobID, deduplicationExpiration: deduplicationExpiration)
+        }
+
+        // Start watcher transferring any orphaned jobs
+
+        try await assistantsWatcher.start { jobURL in
+          self.transferJob(from: jobURL)
+        }
+
       }
 
-      return jobs.count
+      state = .running
 
     }
     catch {
@@ -169,6 +178,8 @@ public actor JobDirector: Identifiable {
   public func stop(completionWaitTimeout seconds: TimeInterval? = nil) async throws {
 
     state = .stopped
+
+    assistantsWatcher.stop()
 
     tasksCancellation.cancel()
 
@@ -212,6 +223,20 @@ public actor JobDirector: Identifiable {
     return try jobDecoder.decode(type, from: data)
   }
 
+  public nonisolated func transferToPrincipal() throws {
+    guard let jobID = Self.currentJobKey?.id else {
+      fatalError("\(#function) must be called from Job.execute")
+    }
+
+    guard directorType.isAssistant else {
+      return
+    }
+
+    logger.info("Transferring job to principal director: job-id=\(jobID)")
+
+    throw JobTransferError.transferToPrincipalDirector
+  }
+
   func resolve<J: Job>(
     _ job: J,
     as jobID: JobID,
@@ -230,7 +255,14 @@ public actor JobDirector: Identifiable {
 
       return (jobKey, result)
     }
+    catch let error as JobTransferError {
+
+      return (jobKey, .failure(error))
+    }
     catch {
+      
+      logger.jobTrace { $0.trace("[\(jobKey)] Resolve failed: error=\(error, privacy: .public)") }
+
       return (jobKey, .failure(error))
     }
   }
@@ -243,31 +275,100 @@ public actor JobDirector: Identifiable {
     }
   }
 
-  private func process(_ job: some SubmittableJob, as jobID: JobID, deduplicationExpiration: Date) {
-    jobTask { [self] in
-      do {
-        let (jobKey, result) = try await resolve(job, as: jobID, tags: [])
+  private func transferJob(from assistantJobURL: URL) {
+    do {
 
-        if case .failure(let error) = result {
-          logger.error("[\(jobID)] Job processing failed: error=\(error, privacy: .public)")
+      guard let jobID = JobID(string: assistantJobURL.deletingPathExtension().lastPathComponent) else {
+        logger.error("Transferred job has invalid name: url=\(assistantJobURL, privacy: .public)")
+        return
+      }
+
+      logger.info("Transferring job from assistant: job-id=\(jobID)")
+
+      let jobURL = store.url(for: .jobPackage(id: jobID))
+      try FileManager.default.moveItem(at: assistantJobURL, to: jobURL)
+
+      Task {
+
+        let loaded: JobDirectorStore.SubmittedJob
+        do {
+          loaded = try await store.loadJob(jobID: jobID)
+        }
+        catch {
+          logger.info("Failed to load transferred job: job-id=\(jobID)")
+          return
         }
 
-        // Sleep until it's time to remove job from storage
-        try? await Task.sleep(until: deduplicationExpiration)
-
-        logger.jobTrace { $0.debug("[\(jobID)] Removing completed job") }
-
-        await removeJob(jobKey: jobKey)
+        process(saved: loaded.job, as: loaded.id, deduplicationExpiration: loaded.deduplicationExpiration)
       }
-      catch is CancellationError {
+    }
+    catch {
+      logger.error("Job transfer failed: error=\(error, privacy: .public)")
+    }
+  }
 
-        logger.jobTrace { $0.debug("[\(jobID)] Removing cancelled job") }
+  private func process(
+    submitted job: some SubmittableJob,
+    as jobID: JobID,
+    deduplicationExpiration: Date
+  ) async throws -> Bool {
 
-        try? await store.removeJob(for: jobID)
+    guard state == .running else {
+
+      logger.error("Job submitted in '\(self.state)' state")
+
+      throw JobDirectorError.invalidDirectorState
+    }
+
+    guard try await store.saveJob(job, as: jobID, deduplicationExpiration: deduplicationExpiration) else {
+
+      logger.jobTrace { $0.info("[\(jobID)] Skipping proccessing of duplicate job") }
+
+      return false
+    }
+
+    self.process(saved: job, as: jobID, deduplicationExpiration: deduplicationExpiration)
+
+    return true
+  }
+
+  private func process(saved job: some SubmittableJob, as jobID: JobID, deduplicationExpiration: Date) {
+    jobTask { [self] in
+      do {
+        let jobHandle = try FileHandle(forDirectory: store.url(for: .jobPackage(id: jobID)))
+        try jobHandle.lock()
+        defer { try? jobHandle.unlock() }
+
+        do {
+          let (jobKey, result) = try await resolve(job, as: jobID, tags: [])
+
+          if result.isTransfer {
+            return
+          }
+
+          if case .failure(let error) = result {
+            logger.error("[\(jobID)] Job processing failed: error=\(error, privacy: .public)")
+          }
+
+          // Sleep until it's time to remove job from storage
+          try? await Task.sleep(until: deduplicationExpiration)
+
+          logger.jobTrace { $0.debug("[\(jobID)] Removing completed job") }
+
+          await removeJob(jobKey: jobKey)
+        }
+        catch is CancellationError {
+
+          logger.jobTrace { $0.debug("[\(jobID)] Removing cancelled job") }
+
+          try? await store.removeJob(for: jobID)
+        }
+        catch {
+          logger.error("[\(jobID)] Unexpected processing failure: error=\(error, privacy: .public)")
+        }
       }
       catch {
-
-        logger.error("[\(jobID)] Unexpected processing failure: error=\(error, privacy: .public)")
+        logger.error("[\(jobID)] Failed to lock job: error=\(error, privacy: .public)")
       }
     }
   }
@@ -303,7 +404,7 @@ public actor JobDirector: Identifiable {
       var resolved: ResolvedInputs = []
       for try await result in group {
 
-        if result.result.isFailure {
+        if result.result.isFailure && !result.result.isTransfer {
 
           logger.jobTrace {
             $0.trace(
@@ -391,6 +492,10 @@ public actor JobDirector: Identifiable {
 
       let result = try await job.execute(as: jobKey, with: inputResults, for: self)
 
+      if result.isTransfer {
+        throw JobTransferError.transferToPrincipalDirector
+      }
+
       logger.jobTrace { $0.trace("[\(jobKey)] Serializing state") }
 
       return try self.encode(ResultState(result: result))
@@ -423,8 +528,21 @@ public actor JobDirector: Identifiable {
     tasks.removeValue(forKey: id)
   }
 
-  private static func storeLocation(id: ID, directory: URL) -> URL {
-    return directory.appendingPathComponent(id.description).appendingPathExtension("job-store")
+  static func storeLocation(id: ID, in directory: URL, type: JobDirectorType) throws -> URL {
+    let principalLocation = directory.appendingPathComponent(id.description).appendingPathExtension("job-store")
+    switch type {
+    case .principal:
+      try FileManager.default.createDirectory(at: principalLocation, withIntermediateDirectories: true)
+      return principalLocation
+    case .assistant(let assistantName):
+      return try assistantsLocation(id: id, in: directory).appendingPathComponent(assistantName)
+    }
+  }
+
+  static func assistantsLocation(id: ID, in directory: URL) throws -> URL {
+    let url = try storeLocation(id: id, in: directory, type: .principal).appendingPathComponent("assistants")
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
   }
 
 }
@@ -436,6 +554,7 @@ public actor JobDirector: Identifiable {
 public enum JobDirectorError: JobError {
 
   case invalidDirectorState
+  case unableToCreateJobsDirectory
 
 }
 
@@ -443,9 +562,10 @@ public enum JobDirectorError: JobError {
 private let packageErrorTypesResolver = TypeNameJobErrorTypeResolver(errors: [
   JobDirectorError.self,
   JobExecutionError.self,
+  JobTransferError.self,
   URLSessionJobManagerError.self,
   TypeNameSubmittableJobTypeResolver.Error.self,
-  NSErrorCodingTransformer.Error.self
+  NSErrorCodingTransformer.Error.self,
 ])
 
 

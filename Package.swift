@@ -18,8 +18,8 @@ let package = Package(
   dependencies: [
     .package(url: "https://github.com/SwiftyLab/AsyncObjects.git", .upToNextMinor(from: "2.1.0")),
     .package(url: "https://github.com/outfoxx/potentcodables.git", .upToNextMinor(from: "3.2.0")),
-    .package(url: "https://github.com/groue/GRDB.swift.git", .upToNextMinor(from: "6.18.0")),
     .package(url: "https://github.com/kdubb/SwiftFriendlyId.git", .upToNextMinor(from: "1.3.1")),
+    .package(url: "https://github.com/outfoxx/IOStreams.git", .upToNextMinor(from: "1.4.2")),
 
     // TESTING DEPENDENCIES
     .package(url: "https://github.com/outfoxx/sunday-swift.git", .upToNextMinor(from: "1.0.0-beta.27"))
@@ -29,7 +29,7 @@ let package = Package(
       name: "Kubrick",
       dependencies: [
         .product(name: "AsyncObjects", package: "AsyncObjects"),
-        .product(name: "GRDB", package: "GRDB.swift"),
+        .product(name: "IOStreams", package: "iostreams"),
         .product(name: "PotentCodables", package: "potentcodables"),
         .product(name: "FriendlyId", package: "SwiftFriendlyId")
       ]

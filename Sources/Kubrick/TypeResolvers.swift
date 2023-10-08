@@ -13,9 +13,15 @@ import Foundation
 
 public protocol SubmittableJobTypeResolver {
 
+  func typeId(of jobType: any SubmittableJob.Type) -> String
   func resolve(jobTypeId: String) throws -> any SubmittableJob.Type
 
 }
+
+
+public let submittableJobTypeResolverKey =
+  CodingUserInfoKey(rawValue: String(reflecting: SubmittableJobTypeResolver.self))!
+
 
 
 public protocol JobErrorTypeResolver {
@@ -25,6 +31,8 @@ public protocol JobErrorTypeResolver {
 
 }
 
+public let jobErrorTypeResolverKey = CodingUserInfoKey(rawValue: String(reflecting: JobErrorTypeResolver.self))!
+
 
 public struct TypeNameSubmittableJobTypeResolver: SubmittableJobTypeResolver {
 
@@ -32,10 +40,14 @@ public struct TypeNameSubmittableJobTypeResolver: SubmittableJobTypeResolver {
     case unknownJobType
   }
 
-  var jobs: [String: any SubmittableJob.Type]
+  var jobs: [String: any SubmittableJob.Type] = [:]
 
   public init(jobs: [any SubmittableJob.Type]) {
-    self.jobs = Dictionary(uniqueKeysWithValues: jobs.map { (String(reflecting: $0), $0) })
+    self.jobs = Dictionary(uniqueKeysWithValues: jobs.map { (typeId(of: $0), $0) })
+  }
+
+  public func typeId(of jobType: any SubmittableJob.Type) -> String {
+    return String(reflecting: jobType)
   }
 
   public func resolve(jobTypeId: String) throws -> any SubmittableJob.Type {
@@ -71,6 +83,10 @@ public struct TypeNameTypeResolver: SubmittableJobTypeResolver, JobErrorTypeReso
   public init(jobs: [any SubmittableJob.Type], errors: [any JobError.Type] = []) {
     self.jobs = TypeNameSubmittableJobTypeResolver(jobs: jobs)
     self.errors = TypeNameJobErrorTypeResolver(errors: errors)
+  }
+
+  public func typeId(of jobType: any SubmittableJob.Type) -> String {
+    return jobs.typeId(of: jobType)
   }
 
   public func resolve(jobTypeId: String) throws -> any SubmittableJob.Type {

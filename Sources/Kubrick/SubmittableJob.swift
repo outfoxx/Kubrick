@@ -10,18 +10,16 @@
 
 import Foundation
 import OSLog
+import PotentCodables
+import PotentCBOR
 
 
 private let logger = Logger.for(category: "SubmittableJob")
 
 
-public protocol SubmittableJob: Job where Value == NoValue {
+public protocol SubmittableJob: Job, Codable where Value == NoValue {
 
   static var typeId: String { get }
-
-  init(from data: Data, using decoder: any JobDecoder) throws
-
-  func encode(using encoder: any JobEncoder) throws -> Data
 
   func execute() async
 
@@ -61,14 +59,55 @@ extension SubmittableJob {
 }
 
 
-public extension SubmittableJob where Self: Codable {
+extension SubmittableJob {
 
-  init(from data: Data, using decoder: any JobDecoder) throws {
+  init(from data: Data, using decoder: CBORDecoder) throws {
     self = try decoder.decode(Self.self, from: data)
   }
 
-  func encode(using encoder: any JobEncoder) throws -> Data {
+  func encode(using encoder: CBOREncoder) throws -> Data {
     return try encoder.encode(self)
+  }
+
+}
+
+
+// MARK: Wrapper
+
+struct SubmittableJobWrapper: Codable {
+
+  var job: any SubmittableJob
+
+}
+
+
+extension SubmittableJobWrapper {
+
+  enum CodingError: Error {
+    case noSubmittableJobTypeResolver
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case type = "@type"
+    case value
+  }
+
+  init(from decoder: Decoder) throws {
+    guard let jobTypeResolver = decoder.userInfo[submittableJobTypeResolverKey] as? SubmittableJobTypeResolver else {
+      throw CodingError.noSubmittableJobTypeResolver
+    }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    let jobType = try jobTypeResolver.resolve(jobTypeId: container.decode(String.self, forKey: .type))
+    self.job = try jobType.init(from: KeyedNestedDecoder(key: .value, container: container, decoder: decoder))
+  }
+
+  func encode(to encoder: Encoder) throws {
+    guard let jobTypeResolver = encoder.userInfo[submittableJobTypeResolverKey] as? SubmittableJobTypeResolver else {
+      throw CodingError.noSubmittableJobTypeResolver
+    }
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(jobTypeResolver.typeId(of: type(of: job)), forKey: .type)
+    try job.encode(to: KeyedNestedEncoder(key: .value, container: container, encoder: encoder))
   }
 
 }

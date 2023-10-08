@@ -19,7 +19,6 @@ public protocol RegisterCacheStore<Key, Value> {
   func value(forKey key: Key) async throws -> Value?
   func updateValue(_ value: Value, forKey key: Key) async throws
   func removeValue(forKey key: Key) async throws
-  func removeValues(forKeys keys: Set<Key>) async throws
 
 }
 
@@ -94,10 +93,11 @@ public actor RegisterCache<Key: Hashable, Value> {
             value = current
           }
           else {
-            value = try await initializer()
-          }
 
-          try await store.updateValue(value, forKey: key)
+            value = try await initializer()
+
+            try await store.updateValue(value, forKey: key)
+          }
 
           await future.fulfill(producing: value)
 
@@ -122,16 +122,6 @@ public actor RegisterCache<Key: Hashable, Value> {
   public func deregister(for key: Key) async throws {
     try await store.removeValue(forKey: key)
     state.removeValue(forKey: key)
-  }
-
-  public func deregister(filter: (Key) -> Bool) async throws {
-    
-    let saved = state.filter { key, _ in filter(key) }
-    let removed = Set(state.keys).subtracting(saved.keys)
-
-    state = saved
-
-    try await store.removeValues(forKeys: removed)
   }
 
   /// Returns the value associated with the given `key`, waiting indefinitely until `key`

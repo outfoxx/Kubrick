@@ -42,6 +42,9 @@ extension ExecutableJob {
             try await execute()
             return .success(NoValue.instance)
           }
+          catch let error as JobTransferError {
+            return .failure(error)
+          }
           catch {
             logger.jobTrace { $0.error("[\(jobKey)] Execute failed: error=\(error)") }
             return .failure(error)

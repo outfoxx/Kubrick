@@ -17,11 +17,12 @@ extension Logger {
     return Logger(subsystem: "io.outfoxx.kubrick", category: category)
   }
 
+  static var jobTraceEnabled = false
 
   func jobTrace(operation: (Logger) -> Void) {
-#if TRACE_JOB_EXECUTION
-    operation(self)
-#endif
+    if Self.jobTraceEnabled {
+      operation(self)
+    }
   }
 
 }

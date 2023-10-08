@@ -1,19 +1,17 @@
 //
-//  DirectorStoreTests.swift
-//  Kubrick
-//
-//  Copyright © 2023 Outfox, inc.
+//  JobDirectorStoreTests.swift
 //
 //
-//  Distributed under the MIT License, See LICENSE for details.
+//  Created by Kevin Wooten on 10/1/23.
 //
 
-import PotentCBOR
 import Foundation
 @testable import Kubrick
+import PotentCBOR
 import XCTest
 
-class DirectorStoreTests: XCTestCase {
+
+class JobDirectorStoreTests: XCTestCase {
 
   func test_StoreAndQueryResult() async throws {
 
@@ -25,7 +23,7 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location)
+    let store = try JobDirectorStore(location: location, jobTypeResolver: TypeNameTypeResolver(jobs: [MainJob.self]))
 
     let id = JobID.generate()
     let fingerprint = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
@@ -33,7 +31,7 @@ class DirectorStoreTests: XCTestCase {
 
     let data = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
 
-    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: .now)
+    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: Date())
     XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(data, forKey: key)
@@ -52,13 +50,13 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location)
+    let store = try JobDirectorStore(location: location, jobTypeResolver: TypeNameTypeResolver(jobs: [MainJob.self]))
 
     let id = JobID.generate()
     let fingerprint = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
     let key = JobKey(id: id, fingerprint: fingerprint)
 
-    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: .now)
+    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: Date())
     XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(Data(), forKey: key)
@@ -86,7 +84,7 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location)
+    let store = try JobDirectorStore(location: location, jobTypeResolver: TypeNameTypeResolver(jobs: [MainJob.self]))
 
     let id = JobID.generate()
     let fingerprint1 = try CBOREncoder.deterministic.encode(Int.random(in: .min ... .max))
@@ -100,7 +98,7 @@ class DirectorStoreTests: XCTestCase {
     let data2 = try CBOREncoder.default.encode(Int.random(in: .min ... .max))
     let data3 = try CBOREncoder.default.encode(Int.random(in: .min ... .max))
 
-    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: .now)
+    let jobSaved = try await store.saveJob(MainJob(), as: id, deduplicationExpiration: Date())
     XCTAssertNotNil(jobSaved)
 
     try await store.updateValue(data1, forKey: key1)
@@ -110,25 +108,26 @@ class DirectorStoreTests: XCTestCase {
     do {
       let queriedData1 = try await store.value(forKey: key1)
       XCTAssertEqual(queriedData1, data1)
-      
+
       let queriedData2 = try await store.value(forKey: key2)
       XCTAssertEqual(queriedData2, data2)
-      
+
       let queriedData3 = try await store.value(forKey: key3)
       XCTAssertEqual(queriedData3, data3)
     }
 
 
-    try await store.removeValues(forKeys: [key1, key3])
+    try await store.removeValue(forKey: key1)
+    try await store.removeValue(forKey: key3)
 
 
     do {
       let queriedData1 = try await store.value(forKey: key1)
       XCTAssertNil(queriedData1)
-      
+
       let queriedData2 = try await store.value(forKey: key2)
       XCTAssertEqual(queriedData2, data2)
-      
+
       let queriedData3 = try await store.value(forKey: key3)
       XCTAssertNil(queriedData3)
     }
@@ -145,10 +144,10 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location)
+    let store = try JobDirectorStore(location: location, jobTypeResolver: TypeNameTypeResolver(jobs: [MainJob.self]))
 
     let jobID = JobID()
-    _ = try await store.saveJob(MainJob(), as: jobID, deduplicationExpiration: .now)
+    _ = try await store.saveJob(MainJob(), as: jobID, deduplicationExpiration: Date())
 
     let jobKey1 = JobKey(id: jobID, fingerprint: Data(repeating: 1, count: 32))
     try await store.updateValue(Data(repeating: 1, count: 10), forKey: jobKey1)
@@ -173,10 +172,10 @@ class DirectorStoreTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("job-store")
 
-    let store = try JobDirectorStore(location: location)
+    let store = try JobDirectorStore(location: location, jobTypeResolver: TypeNameTypeResolver(jobs: [MainJob.self]))
 
     let jobID = JobID()
-    _ = try await store.saveJob(MainJob(), as: jobID, deduplicationExpiration: .now)
+    _ = try await store.saveJob(MainJob(), as: jobID, deduplicationExpiration: Date())
 
     let jobKey1 = JobKey(id: jobID, fingerprint: Data(repeating: 1, count: 32))
     try await store.updateValue(Data(repeating: 1, count: 10), forKey: jobKey1)
@@ -197,20 +196,70 @@ class DirectorStoreTests: XCTestCase {
     }
   }
 
-}
+  func test_LoadJobs() async throws {
 
-private extension JobDirectorStore {
+    struct MainJob: SubmittableJob, Codable {
+      func execute() async {
+      }
+    }
 
-  convenience init(
-    location: URL,
-    jobTypeResolver: SubmittableJobTypeResolver = TypeNameTypeResolver(jobs: [], errors: []),
-    jobEncoder: any JobEncoder = CBOREncoder.deterministic,
-    jobDecoder: any JobDecoder = CBORDecoder.default
-  ) throws {
-    self.init(dbQueue: try Self.db(path: location.path),
-              jobTypeResolver: jobTypeResolver,
-              jobEncoder: jobEncoder,
-              jobDecoder: jobDecoder)
+    let location = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UniqueID.generateString())
+      .appendingPathExtension("job-store")
+
+    let store = try JobDirectorStore(location: location, jobTypeResolver: TypeNameTypeResolver(jobs: [MainJob.self]))
+
+    let jobID1 = JobID()
+    _ = try await store.saveJob(MainJob(), as: jobID1, deduplicationExpiration: Date())
+
+    let jobID2 = JobID()
+    _ = try await store.saveJob(MainJob(), as: jobID2, deduplicationExpiration: Date())
+
+    do {
+      let results = try await store.loadJobs()
+      XCTAssertEqual(results.count, 2)
+      XCTAssertEqual(Set(results.map(\.id)), [jobID2, jobID1])
+    }
+  }
+
+  func test_RemoveJobs() async throws {
+
+    struct MainJob: SubmittableJob, Codable {
+      func execute() async {
+      }
+    }
+
+    let location = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UniqueID.generateString())
+      .appendingPathExtension("job-store")
+
+    let store = try JobDirectorStore(location: location, jobTypeResolver: TypeNameTypeResolver(jobs: [MainJob.self]))
+
+    let jobID1 = JobID()
+    _ = try await store.saveJob(MainJob(), as: jobID1, deduplicationExpiration: Date())
+
+    let jobID2 = JobID()
+    _ = try await store.saveJob(MainJob(), as: jobID2, deduplicationExpiration: Date())
+
+    do {
+      let results = try await store.loadJobs()
+      XCTAssertEqual(results.count, 2)
+    }
+
+    try await store.removeJob(for: jobID1)
+
+    do {
+      let results = try await store.loadJobs()
+      XCTAssertEqual(results.count, 1)
+      XCTAssertEqual(results.first?.id, jobID2)
+    }
+
+    try await store.removeJob(for: jobID2)
+
+    do {
+      let results = try await store.loadJobs()
+      XCTAssertEqual(results.count, 0)
+    }
   }
 
 }

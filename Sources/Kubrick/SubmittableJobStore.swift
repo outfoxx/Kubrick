@@ -11,14 +11,15 @@
 import Foundation
 
 
-typealias SubmittedJob = (job: any SubmittableJob, id: JobID, deduplicationExpiration: Date)
-
-
 protocol SubmittableJobStore {
+
+  typealias SubmittedJob = (job: any SubmittableJob, id: JobID, deduplicationExpiration: Date)
 
   var jobCount: Int { get async throws }
 
   func loadJobs() async throws -> [SubmittedJob]
+
+  func loadJob(id: JobID) async throws -> SubmittedJob?
 
   func saveJob(_ job: some SubmittableJob, as jobID: JobID, deduplicationExpiration: Date) async throws -> Bool
 

@@ -14,8 +14,6 @@ import PotentCodables
 
 public struct JobErrorBox: Codable, JobHashable {
 
-  public static let typeResolverKey = CodingUserInfoKey(rawValue: "Kubrick.errorTypeResolver")!
-
   var error: any Error
 
   public init(_ error: any Error) {
@@ -66,14 +64,14 @@ public struct JobErrorBox: Codable, JobHashable {
   }
 
   static func resolveType(errorDomain: String, for decoder: Decoder) -> JobError.Type? {
-    guard let resolver = decoder.userInfo[Self.typeResolverKey] as? JobErrorTypeResolver else {
+    guard let resolver = decoder.userInfo[jobErrorTypeResolverKey] as? JobErrorTypeResolver else {
       return nil
     }
     return resolver.resolve(errorDomain: errorDomain)
   }
 
   static func resolveType(errorDomain: String, for encoder: Encoder) -> JobError.Type? {
-    guard let resolver = encoder.userInfo[Self.typeResolverKey] as? JobErrorTypeResolver else {
+    guard let resolver = encoder.userInfo[jobErrorTypeResolverKey] as? JobErrorTypeResolver else {
       return nil
     }
     return resolver.resolve(errorDomain: errorDomain)

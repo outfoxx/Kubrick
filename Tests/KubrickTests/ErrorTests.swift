@@ -11,6 +11,7 @@
 import AsyncObjects
 import Foundation
 @testable import Kubrick
+import PotentCodables
 import XCTest
 
 
@@ -19,6 +20,15 @@ class ErrorTests: XCTestCase {
   enum TestError: Error, Codable, Equatable {
     case test
     case test2
+  }
+
+  var director: JobDirector!
+
+  override func tearDown() async throws {
+    if let director {
+      try await director.stop()
+      self.director = nil
+    }
   }
 
   func test_JobInputResultsFailureMapsToSingleFailureIgnoringCancellation() {
@@ -46,10 +56,12 @@ class ErrorTests: XCTestCase {
     let typeResolver = TypeNameTypeResolver(jobs: [], errors: [TestError.self])
 
     let decoder = JSONDecoder()
-    decoder.userInfo[JobErrorBox.typeResolverKey] = typeResolver
+    decoder.userInfo[submittableJobTypeResolverKey] = typeResolver
+    decoder.userInfo[jobErrorTypeResolverKey] = typeResolver
 
     let encoder = JSONEncoder()
-    encoder.userInfo[JobErrorBox.typeResolverKey] = typeResolver
+    encoder.userInfo[submittableJobTypeResolverKey] = typeResolver
+    encoder.userInfo[jobErrorTypeResolverKey] = typeResolver
 
     let error = TestError.test
     let encodedBox = try encoder.encode(JobErrorBox(error))
@@ -73,7 +85,8 @@ class ErrorTests: XCTestCase {
     let decoder = JSONDecoder()
 
     let encoder = JSONEncoder()
-    encoder.userInfo[JobErrorBox.typeResolverKey] = typeResolver
+    encoder.userInfo[submittableJobTypeResolverKey] = typeResolver
+    encoder.userInfo[jobErrorTypeResolverKey] = typeResolver
 
     let error = TestError.test
     let encodedBox = try encoder.encode(JobErrorBox(error))
@@ -122,15 +135,17 @@ class ErrorTests: XCTestCase {
         XCTFail("Should not be called")
       }
 
-      init(from: Data, using: any JobDecoder) throws {}
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
     try await director.submit(MainJob(), as: JobID(string: "1hN7K3p95FQHn3CD2n7WW7")!)
@@ -179,8 +194,10 @@ class ErrorTests: XCTestCase {
         XCTFail("Should not be called")
       }
 
-      init(from: Data, using: any JobDecoder) throws {}
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -189,7 +206,7 @@ class ErrorTests: XCTestCase {
 
     let onCancelled = expectation(description: "NeverEndingJob Cancelled")
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
     try await director.submit(MainJob { onCancelled.fulfill() }, as: JobID(string: "75AtTO40PzFkM11yULcgD")!)
@@ -208,11 +225,7 @@ class ErrorTests: XCTestCase {
     struct MainJob: SubmittableJob {
       @JobInput var count: Int
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Int) -> Void
-
-      init(onExecute: @escaping (Int) -> Void) {
-        self.onExecute = onExecute
+      init() {
         self.$count.bind {
           ThrowingJob()
             .catch { _ in
@@ -222,30 +235,27 @@ class ErrorTests: XCTestCase {
       }
 
       func execute() async {
-        onExecute(count)
+        NotificationCenter.default.post(name: .init("test_CatchMapsErrorsToValues.main.execute"),
+                                        object: nil,
+                                        userInfo: ["count": count])
       }
 
-      init(from: Data, using: any JobDecoder) throws {
-        onExecute = { _ in }
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let executed = expectation(description: "MainJob executed")
-
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let mainJob = MainJob {
-      XCTAssertEqual($0, -1)
-      executed.fulfill()
+    let executed = expectation(forNotification: .init("test_CatchMapsErrorsToValues.main.execute"), object: nil) { not in
+      return not.userInfo?["count"] as? Int == -1
     }
 
-    try await director.submit(mainJob, as: JobID(string: "5u91kxIdJ6MwUrpf1xRWqS")!)
+    try await director.submit(MainJob(), as: JobID(string: "5u91kxIdJ6MwUrpf1xRWqS")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -261,11 +271,7 @@ class ErrorTests: XCTestCase {
     struct MainJob: SubmittableJob {
       @JobInput var count: Int
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onFailed: (Error) -> Void
-
-      init(onFailed: @escaping (Error) -> Void) {
-        self.onFailed = onFailed
+      init() {
         self.$count.bind {
           ThrowingJob()
             .catch { _ in
@@ -283,7 +289,9 @@ class ErrorTests: XCTestCase {
           XCTFail("Input should have failed")
           return .failure(TestError.test)
         }
-        onFailed(error)
+        NotificationCenter.default.post(name: .init("test_CatchErrorsAreReported.main.failed"),
+                                        object: nil,
+                                        userInfo: ["error": error])
         return .failure(error)
       }
 
@@ -291,27 +299,22 @@ class ErrorTests: XCTestCase {
         XCTFail("Should not be called")
       }
 
-      init(from: Data, using: any JobDecoder) throws {
-        onFailed = { _ in }
-      }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      init(from: Decoder) throws {}
+      func encode(to encoder: Encoder) throws {}
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
       MainJob.self
     ])
 
-    let executed = expectation(description: "MainJob executed")
-
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     try await director.start()
 
-    let mainJob = MainJob { error in
-      XCTAssertEqual(error as NSError, TestError.test2 as NSError)
-      executed.fulfill()
+    let executed = expectation(forNotification: .init("test_CatchErrorsAreReported.main.failed"), object: nil) { not in
+      return not.userInfo?["error"] as? NSError == (TestError.test2 as NSError)
     }
 
-    try await director.submit(mainJob, as: JobID(string: "4uZPZbKGZZWstJe7rEdW6c")!)
+    try await director.submit(MainJob(), as: JobID(string: "4uZPZbKGZZWstJe7rEdW6c")!)
 
     await fulfillment(of: [executed], timeout: 3)
   }

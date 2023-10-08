@@ -11,12 +11,22 @@
 import CryptoKit
 import Foundation
 @testable import Kubrick
+import PotentCodables
 import Sunday
 import SundayServer
 import XCTest
 
 
 class URLSessionJobManagerTests: XCTestCase {
+
+  var director: JobDirector!
+
+  override func tearDown() async throws {
+    if let director {
+      try await director.stop()
+      self.director = nil
+    }
+  }
 
   func test_DownloadJob() async throws {
 
@@ -70,11 +80,13 @@ class URLSessionJobManagerTests: XCTestCase {
         onExecute(download)
       }
 
-      init(from: Data, using: any JobDecoder) throws {
+      init(from: Decoder) throws {
         onProgress = { _, _, _ in }
         onExecute = { _ in }
       }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -83,7 +95,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let requestURL = serverURL.appendingPathComponent("test-file")
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     try await director.start()
@@ -150,10 +162,12 @@ class URLSessionJobManagerTests: XCTestCase {
         onExecute(download)
       }
 
-      init(from: Data, using: any JobDecoder) throws {
+      init(from: Decoder) throws {
         onExecute = { _ in }
       }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -162,7 +176,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let requestURL = serverURL.appendingPathComponent("test-file")
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     try await director.start()
@@ -209,10 +223,12 @@ class URLSessionJobManagerTests: XCTestCase {
         onExecute(response)
       }
 
-      init(from: Data, using: any JobDecoder) throws {
+      init(from: Decoder) throws {
         onExecute = { _ in }
       }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -221,7 +237,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     let nonExistentServerURL = URL(string: "http://\(UniqueID.generateString())")!
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     try await director.start()
@@ -290,11 +306,13 @@ class URLSessionJobManagerTests: XCTestCase {
         onExecute(response)
       }
 
-      init(from: Data, using: any JobDecoder) throws {
+      init(from: Decoder) throws {
         onProgress = { _, _, _ in }
         onExecute = { _ in }
       }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -309,7 +327,7 @@ class URLSessionJobManagerTests: XCTestCase {
     try Data((0 ..< 512 * 1024).map { _ in UInt8.random(in: .min ..< .max) })
       .write(to: fileURL)
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     try await director.start()
@@ -374,10 +392,12 @@ class URLSessionJobManagerTests: XCTestCase {
         onExecute(response)
       }
 
-      init(from: Data, using: any JobDecoder) throws {
+      init(from: Decoder) throws {
         onExecute = { _ in }
       }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -392,7 +412,7 @@ class URLSessionJobManagerTests: XCTestCase {
     try Data((0 ..< 512 * 1024).map { _ in UInt8.random(in: .min ..< .max) })
       .write(to: fileURL)
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     try await director.start()
@@ -444,10 +464,12 @@ class URLSessionJobManagerTests: XCTestCase {
         onExecute(response)
       }
 
-      init(from: Data, using: any JobDecoder) throws {
+      init(from: Decoder) throws {
         onExecute = { _ in }
       }
-      func encode(using: any JobEncoder) throws -> Data { Data() }
+      func encode(to encoder: Encoder) throws {
+        _ = encoder.container(keyedBy: AnyCodingKey.self)
+      }
     }
 
     let typeResolver = TypeNameTypeResolver(jobs: [
@@ -459,7 +481,7 @@ class URLSessionJobManagerTests: XCTestCase {
       .appendingPathComponent(UniqueID.generateString())
       .appendingPathExtension("data")
 
-    let director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
     director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
 
     try await director.start()
