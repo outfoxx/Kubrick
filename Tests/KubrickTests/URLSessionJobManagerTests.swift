@@ -56,36 +56,42 @@ class URLSessionJobManagerTests: XCTestCase {
     }
 
     struct MainJob: SubmittableJob {
+      @JobInput var url: URL
       @JobInput var download: URLSessionDownloadJobResult
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onProgress: (Int, Int, Int) -> Void
-      let onExecute: (URLSessionDownloadJobResult) -> Void
-
-      init(
-        url: URL,
-        onProgress: @escaping (Int, Int, Int) -> Void,
-        onExecute: @escaping (URLSessionDownloadJobResult) -> Void
-      ) {
-        self.onProgress = onProgress
-        self.onExecute = onExecute
-        $download.bind {
+      init(url: URL) {
+        self.url = url
+        self.$download.bind {
           URLSessionDownloadFileJob()
             .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData))
-            .progress(progress: onProgress)
+            .onProgress(Self.onProgress)
         }
       }
 
-      func execute() async {
-        onExecute(download)
+      static func onProgress(progressedBytes: Int, transferredBytes: Int, totalBytes: Int) {
+        NotificationCenter.default.post(name: .init("test_DownloadJob.main.progressed"),
+                                        object: nil,
+                                        userInfo: [
+                                          "progressed": progressedBytes,
+                                          "transferred": transferredBytes,
+                                          "total": totalBytes
+                                        ])
       }
 
-      init(from: Decoder) throws {
-        onProgress = { _, _, _ in }
-        onExecute = { _ in }
+      func execute() async {
+        NotificationCenter.default.post(name: .init("test_DownloadJob.main.executed"),
+                                        object: nil,
+                                        userInfo: ["download": download])
       }
+
+      init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.init(url: try container.decode(URL.self))
+      }
+
       func encode(to encoder: Encoder) throws {
-        _ = encoder.container(keyedBy: AnyCodingKey.self)
+        var container = encoder.singleValueContainer()
+        try container.encode(url)
       }
     }
 
@@ -96,34 +102,30 @@ class URLSessionJobManagerTests: XCTestCase {
     let requestURL = serverURL.appendingPathComponent("test-file")
 
     director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
-    director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+    director.injected[URLSessionJobManager.self] = URLSessionJobManager(director: director,
+                                                                        primaryConfiguration: .default)
 
     try await director.start()
 
-    let progressed = expectation(description: "Download progressed")
-    progressed.assertForOverFulfill = false
-    progressed.expectedFulfillmentCount = 2
+    let progressedEx = expectation(forNotification: .init("test_DownloadJob.main.progressed"), object: nil)
+    progressedEx.expectedFulfillmentCount = 3
+    progressedEx.assertForOverFulfill = false
 
-    let executed = expectation(description: "MainJob executed")
+    let executedEx = expectation(forNotification: .init("test_DownloadJob.main.executed"), object: nil) { not in
+      guard
+        let download = not.userInfo?["download"] as? URLSessionDownloadJobResult,
+        let fileSize = try? download.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+        fileSize == 1024 * 512
+      else {
+        return false
+      }
 
-    let id = JobID()
-    let mainJob = MainJob(url: requestURL) { _, current, total in
-      //print("Progressed: current=\(current), total=\(total)")
-      progressed.fulfill()
-
-    } onExecute: { download in
-
-      XCTAssertEqual(try? download.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize, 1024 * 512)
-      XCTAssertEqual(download.response.url, serverURL.appendingPathComponent("test-file"))
-      XCTAssertEqual(download.response.statusCode, 200)
-      XCTAssertEqual(download.response.header(forName: HTTP.StdHeaders.contentType), MediaType.octetStream.value)
-
-      executed.fulfill()
+      return download.response.statusCode == 200 && download.response.url == requestURL
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob(url: requestURL))
 
-    await fulfillment(of: [progressed, executed], timeout: 3)
+    await fulfillment(of: [progressedEx, executedEx], timeout: 3)
   }
 
   func test_DownloadJobReportsInvalidResponses() async throws {
@@ -141,17 +143,12 @@ class URLSessionJobManagerTests: XCTestCase {
     }
 
     struct MainJob: SubmittableJob {
+      @JobInput var url: URL
       @JobInput var download: Result<URLSessionDownloadJobResult, Error>
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Result<URLSessionDownloadJobResult, Error>) -> Void
-
-      init(
-        url: URL,
-        onExecute: @escaping (Result<URLSessionDownloadJobResult, Error>) -> Void
-      ) {
-        self.onExecute = onExecute
-        $download.bind {
+      init(url: URL) {
+        self.url = url
+        self.$download.bind {
           URLSessionDownloadFileJob()
             .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData))
             .mapToResult()
@@ -159,14 +156,21 @@ class URLSessionJobManagerTests: XCTestCase {
       }
 
       func execute() async {
-        onExecute(download)
+        NotificationCenter.default.post(name: .init("test_DownloadJobReportsInvalidResponses.main.executed"),
+                                        object: nil,
+                                        userInfo: [
+                                          "result": download
+                                        ])
       }
 
-      init(from: Decoder) throws {
-        onExecute = { _ in }
+      init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.init(url: try container.decode(URL.self))
       }
+
       func encode(to encoder: Encoder) throws {
-        _ = encoder.container(keyedBy: AnyCodingKey.self)
+        var container = encoder.singleValueContainer()
+        try container.encode(url)
       }
     }
 
@@ -177,27 +181,25 @@ class URLSessionJobManagerTests: XCTestCase {
     let requestURL = serverURL.appendingPathComponent("test-file")
 
     director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
-    director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+    director.injected[URLSessionJobManager.self] = URLSessionJobManager(director: director,
+                                                                        primaryConfiguration: .default)
 
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
+    let executed = expectation(forNotification: .init("test_DownloadJobReportsInvalidResponses.main.executed"),
+                               object: nil) { not in
 
-    let id = JobID()
-    let mainJob = MainJob(url: requestURL) { result in
-
-      guard case .failure(let error) = result else {
-        return XCTFail("Upload should have failed")
+      guard
+        let result = not.userInfo?["result"] as? Result<URLSessionDownloadJobResult, Error>,
+        case .failure(let error) = result
+      else {
+        return false
       }
 
-      let nsError = error as NSError
-      XCTAssertEqual(nsError.domain, (URLSessionJobError.invalidResponseStatus as NSError).domain)
-      XCTAssertEqual(nsError.code, (URLSessionJobError.invalidResponseStatus as NSError).code)
-
-      executed.fulfill()
+      return (error as NSError) == URLSessionJobError.invalidResponseStatus as NSError
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob(url: requestURL))
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -205,29 +207,34 @@ class URLSessionJobManagerTests: XCTestCase {
   func test_DownloadJobHandlesError() async throws {
 
     struct MainJob: SubmittableJob {
-      @JobInput var response: Result<URLSessionDownloadJobResult, Error>
+      @JobInput var url: URL
+      @JobInput var download: Result<URLSessionDownloadJobResult, Error>
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Result<URLSessionDownloadJobResult, Error>) -> Void
-
-      init(url: URL, onExecute: @escaping (Result<URLSessionDownloadJobResult, Error>) -> Void) {
-        self.onExecute = onExecute
-        $response.bind {
+      init(url: URL) {
+        self.url = url
+        self.$download.bind {
           URLSessionDownloadFileJob()
-            .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData).with(httpMethod: .put))
+            .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData))
             .mapToResult()
         }
       }
 
       func execute() async {
-        onExecute(response)
+        NotificationCenter.default.post(name: .init("test_DownloadJobHandlesError.main.executed"),
+                                        object: nil,
+                                        userInfo: [
+                                          "result": download
+                                        ])
       }
 
-      init(from: Decoder) throws {
-        onExecute = { _ in }
+      init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.init(url: try container.decode(URL.self))
       }
+
       func encode(to encoder: Encoder) throws {
-        _ = encoder.container(keyedBy: AnyCodingKey.self)
+        var container = encoder.singleValueContainer()
+        try container.encode(url)
       }
     }
 
@@ -238,31 +245,29 @@ class URLSessionJobManagerTests: XCTestCase {
     let nonExistentServerURL = URL(string: "http://\(UniqueID.generateString())")!
 
     director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
-    director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+    director.injected[URLSessionJobManager.self] = URLSessionJobManager(director: director,
+                                                                        primaryConfiguration: .default)
 
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
+    let executed = expectation(forNotification: .init("test_DownloadJobHandlesError.main.executed"),
+                               object: nil) { not in
 
-    let id = JobID()
-    let mainJob = MainJob(url: nonExistentServerURL) { result in
-
-      guard case .failure(let error) = result else {
-        return XCTFail("Upload should have failed")
+      guard
+        let result = not.userInfo?["result"] as? Result<URLSessionDownloadJobResult, Error>,
+        case .failure(let error) = result
+      else {
+        return false
       }
 
       let nsError = error as NSError
-      XCTAssertEqual(nsError.domain, URLError.errorDomain)
-      XCTAssertEqual(nsError.code, URLError.Code.cannotFindHost.rawValue)
-
-      executed.fulfill()
+      return nsError.domain == URLError.errorDomain && nsError.code == URLError.Code.cannotFindHost.rawValue
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob(url: nonExistentServerURL))
 
     await fulfillment(of: [executed], timeout: 3)
   }
-
 
   func test_UploadJob() async throws {
 
@@ -280,38 +285,54 @@ class URLSessionJobManagerTests: XCTestCase {
     }
 
     struct MainJob: SubmittableJob {
+      @JobInput var fromFile: URL
+      @JobInput var toURL: URL
       @JobInput var response: URLSessionJobResponse
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onProgress: (Int, Int, Int) -> Void
-      let onExecute: (URLSessionJobResponse) -> Void
-
-      init(
-        fromFile: URL,
-        toURL url: URL,
-        onProgress: @escaping (Int, Int, Int) -> Void,
-        onExecute: @escaping (URLSessionJobResponse) -> Void
-      ) {
-        self.onProgress = onProgress
-        self.onExecute = onExecute
-        $response.bind {
+      init(fromFile: URL, toURL: URL) {
+        self.fromFile = fromFile
+        self.toURL = toURL
+        self.$response.bind {
           URLSessionUploadFileJob()
             .fromFile(fromFile)
-            .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData).with(httpMethod: .put))
-            .progress(progress: onProgress)
+            .request(URLRequest(url: toURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData).with(httpMethod: .put))
+            .onProgress(Self.onProgress)
         }
       }
 
-      func execute() async {
-        onExecute(response)
+      static func onProgress(progressedBytes: Int, transferredBytes: Int, totalBytes: Int) {
+        NotificationCenter.default.post(name: .init("test_UploadJob.main.progressed"),
+                                        object: nil,
+                                        userInfo: [
+                                          "progressed": progressedBytes,
+                                          "transferred": transferredBytes,
+                                          "total": totalBytes
+                                        ])
       }
 
-      init(from: Decoder) throws {
-        onProgress = { _, _, _ in }
-        onExecute = { _ in }
+      func execute() async {
+        NotificationCenter.default.post(name: .init("test_UploadJob.main.executed"),
+                                        object: nil,
+                                        userInfo: ["response": response])
       }
+
+      enum CodingKeys: CodingKey {
+        case fromFile
+        case toURL
+      }
+
+      init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+          fromFile: try container.decode(URL.self, forKey: .fromFile),
+          toURL: try container.decode(URL.self, forKey: .toURL)
+        )
+      }
+      
       func encode(to encoder: Encoder) throws {
-        _ = encoder.container(keyedBy: AnyCodingKey.self)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(fromFile, forKey: .fromFile)
+        try container.encode(toURL, forKey: .toURL)
       }
     }
 
@@ -328,28 +349,22 @@ class URLSessionJobManagerTests: XCTestCase {
       .write(to: fileURL)
 
     director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
-    director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+    director.injected[URLSessionJobManager.self] = URLSessionJobManager(director: director,
+                                                                        primaryConfiguration: .default)
 
     try await director.start()
 
-    let progressed = expectation(description: "Upload progressed")
+    let progressed = expectation(forNotification: .init("test_UploadJob.main.progressed"), object: nil)
     progressed.assertForOverFulfill = false
 
-    let executed = expectation(description: "MainJob executed")
-
-    let id = JobID()
-    let mainJob = MainJob(fromFile: fileURL, toURL: requestURL) { _, current, total in
-      //print("Progressed: current=\(current), total=\(total)")
-      progressed.fulfill()
-
-    } onExecute: { response in
-
-      XCTAssertEqual(response.statusCode, 200)
-
-      executed.fulfill()
+    let executed = expectation(forNotification: .init("test_UploadJob.main.executed"), object: nil) { not in
+      guard let response = not.userInfo?["response"] as? URLSessionJobResponse else {
+        return false
+      }
+      return response.statusCode == 200
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob(fromFile: fileURL, toURL: requestURL))
 
     await fulfillment(of: [progressed, executed], timeout: 3)
   }
@@ -369,34 +384,44 @@ class URLSessionJobManagerTests: XCTestCase {
     }
 
     struct MainJob: SubmittableJob {
+      @JobInput var fromFile: URL
+      @JobInput var toURL: URL
       @JobInput var response: Result<URLSessionJobResponse, Error>
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Result<URLSessionJobResponse, Error>) -> Void
-
-      init(
-        fromFile: URL,
-        toURL url: URL,
-        onExecute: @escaping (Result<URLSessionJobResponse, Error>) -> Void
-      ) {
-        self.onExecute = onExecute
-        $response.bind {
+      init(fromFile: URL, toURL: URL) {
+        self.fromFile = fromFile
+        self.toURL = toURL
+        self.$response.bind {
           URLSessionUploadFileJob()
             .fromFile(fromFile)
-            .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData).with(httpMethod: .put))
+            .request(URLRequest(url: toURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData).with(httpMethod: .put))
             .mapToResult()
         }
       }
 
       func execute() async {
-        onExecute(response)
+        NotificationCenter.default.post(name: .init("test_UploadJobReportsInvalidResponses.main.executed"),
+                                        object: nil,
+                                        userInfo: ["response": response])
       }
 
-      init(from: Decoder) throws {
-        onExecute = { _ in }
+      enum CodingKeys: CodingKey {
+        case fromFile
+        case toURL
       }
+
+      init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+          fromFile: try container.decode(URL.self, forKey: .fromFile),
+          toURL: try container.decode(URL.self, forKey: .toURL)
+        )
+      }
+
       func encode(to encoder: Encoder) throws {
-        _ = encoder.container(keyedBy: AnyCodingKey.self)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(fromFile, forKey: .fromFile)
+        try container.encode(toURL, forKey: .toURL)
       }
     }
 
@@ -413,27 +438,25 @@ class URLSessionJobManagerTests: XCTestCase {
       .write(to: fileURL)
 
     director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
-    director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+    director.injected[URLSessionJobManager.self] = URLSessionJobManager(director: director,
+                                                                        primaryConfiguration: .default)
 
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
+    let executed = expectation(forNotification: .init("test_UploadJobReportsInvalidResponses.main.executed"),
+                               object: nil) { not in
 
-    let id = JobID()
-    let mainJob = MainJob(fromFile: fileURL, toURL: requestURL) { result in
-
-      guard case .failure(let error) = result else {
-        return XCTFail("Upload should have failed")
+      guard
+        let result = not.userInfo?["response"] as? Result<URLSessionJobResponse, Error>,
+        case .failure(let error) = result
+      else {
+        return false
       }
 
-      let nsError = error as NSError
-      XCTAssertEqual(nsError.domain, (URLSessionJobError.invalidResponseStatus as NSError).domain)
-      XCTAssertEqual(nsError.code, (URLSessionJobError.invalidResponseStatus as NSError).code)
-
-      executed.fulfill()
+      return (error as NSError) == URLSessionJobError.invalidResponseStatus as NSError
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob(fromFile: fileURL, toURL: requestURL))
 
     await fulfillment(of: [executed], timeout: 3)
   }
@@ -441,34 +464,44 @@ class URLSessionJobManagerTests: XCTestCase {
   func test_UploadJobHandlesError() async throws {
 
     struct MainJob: SubmittableJob {
+      @JobInput var fromFile: URL
+      @JobInput var toURL: URL
       @JobInput var response: Result<URLSessionJobResponse, Error>
 
-      // TESTING: DO NOT DO THIS IN SUBMITTABLE JOB
-      let onExecute: (Result<URLSessionJobResponse, Error>) -> Void
-
-      init(
-        fromFile: URL,
-        toURL url: URL,
-        onExecute: @escaping (Result<URLSessionJobResponse, Error>) -> Void
-      ) {
-        self.onExecute = onExecute
-        $response.bind {
+      init(fromFile: URL, toURL: URL) {
+        self.fromFile = fromFile
+        self.toURL = toURL
+        self.$response.bind {
           URLSessionUploadFileJob()
             .fromFile(fromFile)
-            .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData).with(httpMethod: .put))
+            .request(URLRequest(url: toURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData).with(httpMethod: .put))
             .mapToResult()
         }
       }
 
       func execute() async {
-        onExecute(response)
+        NotificationCenter.default.post(name: .init("test_UploadJobHandlesError.main.executed"),
+                                        object: nil,
+                                        userInfo: ["response": response])
       }
 
-      init(from: Decoder) throws {
-        onExecute = { _ in }
+      enum CodingKeys: CodingKey {
+        case fromFile
+        case toURL
       }
+
+      init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+          fromFile: try container.decode(URL.self, forKey: .fromFile),
+          toURL: try container.decode(URL.self, forKey: .toURL)
+        )
+      }
+
       func encode(to encoder: Encoder) throws {
-        _ = encoder.container(keyedBy: AnyCodingKey.self)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(fromFile, forKey: .fromFile)
+        try container.encode(toURL, forKey: .toURL)
       }
     }
 
@@ -482,27 +515,26 @@ class URLSessionJobManagerTests: XCTestCase {
       .appendingPathExtension("data")
 
     director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
-    director.injected[URLSessionJobManager.self] = URLSessionJobManager(configuration: .default, director: director)
+    director.injected[URLSessionJobManager.self] = URLSessionJobManager(director: director,
+                                                                        primaryConfiguration: .default)
 
     try await director.start()
 
-    let executed = expectation(description: "MainJob executed")
+    let executed = expectation(forNotification: .init("test_UploadJobHandlesError.main.executed"),
+                               object: nil) { not in
 
-    let id = JobID()
-    let mainJob = MainJob(fromFile: nonExistentFileURL, toURL: nonExistentServerURL) { result in
-
-      guard case .failure(let error) = result else {
-        return XCTFail("Upload should have failed")
+      guard
+        let result = not.userInfo?["response"] as? Result<URLSessionJobResponse, Error>,
+        case .failure(let error) = result
+      else {
+        return false
       }
 
       let nsError = error as NSError
-      XCTAssertEqual(nsError.domain, URLError.errorDomain)
-      XCTAssertEqual(nsError.code, URLError.Code.cannotFindHost.rawValue)
-
-      executed.fulfill()
+      return nsError.domain == URLError.errorDomain && nsError.code == URLError.Code.cannotFindHost.rawValue
     }
 
-    try await director.submit(mainJob, as: id)
+    try await director.submit(MainJob(fromFile: nonExistentFileURL, toURL: nonExistentServerURL))
 
     await fulfillment(of: [executed], timeout: 3)
   }

@@ -25,14 +25,19 @@ public enum URLSessionJobManagerError: JobError {
 
 public actor URLSessionJobManager {
 
-  public typealias Progress = (_ progressedBytes: Int, _ transferredBytes: Int, _ totalBytes: Int) async -> Void
+  public typealias OnStart = (_ director: JobDirector, _ task: URLSessionTask) async throws -> Void
+  public typealias OnProgress = (_ progressedBytes: Int, _ transferredBytes: Int, _ totalBytes: Int) async -> Void
 
   public class Delegate: NSObject, URLSessionDownloadDelegate {
 
     weak var owner: URLSessionJobManager?
 
-    func queueTask(operation: @Sendable @escaping () async throws -> Void) {
-      owner?.urlSession.delegateQueue.addOperation(TaskOperation(operation: operation))
+    init(owner: URLSessionJobManager? = nil) {
+      self.owner = owner
+    }
+
+    func queueTask(session: URLSession, operation: @Sendable @escaping () async throws -> Void) {
+      session.delegateQueue.addOperation(TaskOperation(operation: operation))
     }
 
     public func urlSession(
@@ -46,7 +51,7 @@ public actor URLSessionJobManager {
 
       logger.debug("[\(task.taskIdentifier)] Upload progress update")
 
-      queueTask {
+      queueTask(session: session) {
         guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
@@ -57,7 +62,7 @@ public actor URLSessionJobManager {
         logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
 
         await owner.director.runAs(jobKey: jobKey) {
-          await taskJobInfo.progress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
+          await taskJobInfo.onProgress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
         }
       }
     }
@@ -73,7 +78,7 @@ public actor URLSessionJobManager {
 
       logger.debug("[\(task.taskIdentifier)] Download progress update")
 
-      queueTask {
+      queueTask(session: session) {
         guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
@@ -84,7 +89,7 @@ public actor URLSessionJobManager {
         logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
 
         await owner.director.runAs(jobKey: jobKey) {
-          await taskJobInfo.progress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
+          await taskJobInfo.onProgress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
         }
       }
     }
@@ -122,7 +127,7 @@ public actor URLSessionJobManager {
         result = .failure(error)
       }
 
-      queueTask {
+      queueTask(session: session) {
         guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
@@ -158,7 +163,7 @@ public actor URLSessionJobManager {
         logger.debug("[\(task.taskIdentifier)] Task completed successfully")
       }
 
-      queueTask {
+      queueTask(session: session) {
         guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
           logger.jobTrace {
             $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
@@ -179,14 +184,14 @@ public actor URLSessionJobManager {
     typealias Result = (fileURL: URL, response: URLSessionJobResponse)
 
     let task: URLSessionTask
-    let progress: Progress?
+    let onProgress: OnProgress?
     let future: Future<Result, Error>
     var url: URL?
 
-    init(task: URLSessionTask, future: Future<Result, Error>, progress: Progress?) {
+    init(task: URLSessionTask, future: Future<Result, Error>, onProgress: OnProgress?) {
       self.task = task
       self.future = future
-      self.progress = progress
+      self.onProgress = onProgress
     }
 
     func save(url: URL) {
@@ -237,12 +242,12 @@ public actor URLSessionJobManager {
   struct UploadTaskJobInfo: URLSessionTaskJobInfo {
 
     let task: URLSessionTask
-    let progress: Progress?
+    let onProgress: OnProgress?
     let future: Future<URLSessionJobResponse, Error>
 
-    init(task: URLSessionTask, future: Future<URLSessionJobResponse, Error>, progress: Progress?) {
+    init(task: URLSessionTask, future: Future<URLSessionJobResponse, Error>, onProgress: OnProgress?) {
       self.task = task
-      self.progress = progress
+      self.onProgress = onProgress
       self.future = future
     }
 
@@ -284,27 +289,39 @@ public actor URLSessionJobManager {
     }
   }
 
-  public nonisolated let urlSession: URLSession
-
   private let director: JobDirector
+  private let primarySession: URLSession
+  private var secondardarySessions: [URLSession] = []
+  private let sessionDelegatesQueue: OperationQueue
   private let taskJobInfoCache = RegisterCache<JobKey, URLSessionTaskJobInfo>()
 
-  public init(configuration: URLSessionConfiguration, director: JobDirector) {
-    let operationQueue = OperationQueue()
-    operationQueue.maxConcurrentOperationCount = 1
-    operationQueue.isSuspended = true
-    
-    let delegate = Delegate()
-
-    self.urlSession = URLSession(configuration: configuration, delegate: delegate, delegateQueue: operationQueue)
+  public init(director: JobDirector, primaryConfiguration: URLSessionConfiguration) {
     self.director = director
-    
+    self.sessionDelegatesQueue = OperationQueue()
+    self.sessionDelegatesQueue.maxConcurrentOperationCount = 1
+    self.sessionDelegatesQueue.isSuspended = true
+
+    let delegate = Delegate()
+    self.primarySession = URLSession(configuration: primaryConfiguration,
+                                     delegate: delegate,
+                                     delegateQueue: sessionDelegatesQueue)
     delegate.owner = self
 
-    operationQueue.isSuspended = false
+    self.sessionDelegatesQueue.isSuspended = false
   }
 
-  public func download(request: URLRequest, progress: Progress?) async throws -> (URL, URLSessionJobResponse) {
+  public func addSecondarySession(configuration: URLSessionConfiguration) {
+    let delegate = Delegate(owner: self)
+    let urlSession = URLSession(configuration: configuration, delegate: delegate, delegateQueue: sessionDelegatesQueue)
+    secondardarySessions.append(urlSession)
+  }
+
+  func download(
+    request: URLRequest,
+    onStart: OnStart?,
+    onProgress: OnProgress?
+  ) async throws -> DownloadTaskJobInfo.Result {
+
     guard let jobKey = JobDirector.currentJobKey else {
       fatalError("No current job key")
     }
@@ -315,20 +332,28 @@ public actor URLSessionJobManager {
 
       let downloadTask: URLSessionDownloadTask
       if
-        let existingTask = await self.findJobTask(jobKey: jobKey),
+        let (existingTask, existingSession) = await self.findJobTask(jobKey: jobKey),
         let existingDownloadTask = existingTask as? URLSessionDownloadTask
       {
-        logger.debug("[\(jobKey)] Found existing download task: task-id=\(existingDownloadTask.taskIdentifier)")
+        logger.debug(
+          """
+          [\(jobKey)] Found existing download task: \
+          task-id=\(existingDownloadTask.taskIdentifier), \
+          session-id=\(existingSession.configuration.identifier ?? "nil", privacy: .public)
+          """
+        )
         downloadTask = existingDownloadTask
       }
       else {
         logger.info("[\(jobKey)] Starting download task")
-        downloadTask = self.urlSession.downloadTask(with: request)
+        downloadTask = self.primarySession.downloadTask(with: request)
         downloadTask.taskDescription = ExternalJobKey(directorId: self.director.id, jobKey: jobKey).value
         downloadTask.resume()
+
+        try await onStart?(self.director, downloadTask)
       }
 
-      return DownloadTaskJobInfo(task: downloadTask, future: .init(), progress: progress)
+      return DownloadTaskJobInfo(task: downloadTask, future: .init(), onProgress: onProgress)
 
     } as! DownloadTaskJobInfo
 
@@ -348,7 +373,8 @@ public actor URLSessionJobManager {
   public func upload(
     fromFile file: URL,
     request: URLRequest,
-    progress: Progress?
+    onStart: OnStart?,
+    onProgress: OnProgress?
   ) async throws -> URLSessionJobResponse {
 
     guard let jobKey = JobDirector.currentJobKey else {
@@ -361,20 +387,28 @@ public actor URLSessionJobManager {
 
       let uploadTask: URLSessionUploadTask
       if
-        let existingTask = await self.findJobTask(jobKey: jobKey),
+        let (existingTask, existingSession) = await self.findJobTask(jobKey: jobKey),
         let existingUploadTask = existingTask as? URLSessionUploadTask
       {
-        logger.debug("[\(jobKey)] Found existing upload task: task-id=\(existingUploadTask.taskIdentifier)")
+        logger.debug(
+          """
+          [\(jobKey)] Found existing upload task: \
+          task-id=\(existingUploadTask.taskIdentifier), \
+          session-id=\(existingSession.configuration.identifier ?? "nil", privacy: .public)
+          """
+        )
         uploadTask = existingUploadTask
       }
       else {
         logger.info("[\(jobKey)] Starting upload task")
-        uploadTask = self.urlSession.uploadTask(with: request, fromFile: file)
+        uploadTask = self.primarySession.uploadTask(with: request, fromFile: file)
         uploadTask.taskDescription = ExternalJobKey(directorId: self.director.id, jobKey: jobKey).value
         uploadTask.resume()
+
+        try await onStart?(self.director, uploadTask)
       }
 
-      return UploadTaskJobInfo(task: uploadTask, future: .init(), progress: progress)
+      return UploadTaskJobInfo(task: uploadTask, future: .init(), onProgress: onProgress)
 
     } as! UploadTaskJobInfo
 
@@ -402,14 +436,26 @@ public actor URLSessionJobManager {
     return (externalJobKey.jobKey, try await taskJobInfoCache.valueWhenAvailable(for: externalJobKey.jobKey))
   }
 
-  func findJobTask(jobKey: JobKey) async -> URLSessionTask? {
-    let tasks = await urlSession.allTasks
+  func findJobTask(jobKey: JobKey) async -> (URLSessionTask, URLSession)? {
     let externalJobKey = ExternalJobKey(directorId: director.id, jobKey: jobKey)
-    for task in tasks {
-      if task.taskDescription == externalJobKey.value {
-        return task
+    
+    func find(in session: URLSession) async -> URLSessionTask? {
+      let tasks = await session.allTasks
+      for task in tasks {
+        if task.taskDescription == externalJobKey.value {
+          return task
+        }
+      }
+      return nil
+    }
+
+    let allSessions = [primarySession] + secondardarySessions
+    for session in allSessions {
+      if let task = await find(in: session) {
+        return (task, session)
       }
     }
+
     return nil
   }
 
@@ -426,7 +472,7 @@ public actor URLSessionJobManager {
 protocol URLSessionTaskJobInfo {
 
   var task: URLSessionTask { get }
-  var progress: URLSessionJobManager.Progress? { get }
+  var onProgress: URLSessionJobManager.OnProgress? { get }
 
   func finish(response: URLResponse?, error: Error?) async
 
@@ -467,7 +513,8 @@ public struct URLSessionDownloadFileJob: ResultJob {
   public typealias ResultValue = URLSessionDownloadJobResult
 
   @JobInput public var request: URLRequest
-  public var progress: URLSessionJobManager.Progress? = nil
+  public var onStart: URLSessionJobManager.OnStart? = nil
+  public var onProgress: URLSessionJobManager.OnProgress? = nil
 
   @JobInject private var manager: URLSessionJobManager
 
@@ -475,7 +522,7 @@ public struct URLSessionDownloadFileJob: ResultJob {
 
   public func execute() async throws -> ResultValue {
     
-    let (fileURL, response) = try await manager.download(request: request, progress: progress)
+    let (fileURL, response) = try await manager.download(request: request, onStart: onStart, onProgress: onProgress)
 
     guard (200 ..< 299).contains(response.statusCode) else {
       throw URLSessionJobError.invalidResponseStatus
@@ -487,21 +534,32 @@ public struct URLSessionDownloadFileJob: ResultJob {
   public func request(_ request: URLRequest) -> URLSessionDownloadFileJob {
     var new = URLSessionDownloadFileJob()
     new.request = request
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
   public func request(@JobBuilder<URLRequest> _ jobBuilder: () -> some Job<URLRequest>) -> URLSessionDownloadFileJob {
     var new = URLSessionDownloadFileJob()
     new.$request.bind(job: jobBuilder())
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
-  public func progress(progress: @escaping URLSessionJobManager.Progress) -> URLSessionDownloadFileJob {
+  public func onStart(_ onStart: @escaping URLSessionJobManager.OnStart) -> URLSessionDownloadFileJob {
     var new = URLSessionDownloadFileJob()
     new._request = _request
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
+    return new
+  }
+
+  public func onProgress(_ onProgress: @escaping URLSessionJobManager.OnProgress) -> URLSessionDownloadFileJob {
+    var new = URLSessionDownloadFileJob()
+    new._request = _request
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
@@ -514,7 +572,8 @@ public struct URLSessionUploadFileJob: ResultJob {
 
   @JobInput public var fromFile: URL
   @JobInput public var request: URLRequest
-  public var progress: URLSessionJobManager.Progress? = nil
+  public var onStart: URLSessionJobManager.OnStart? = nil
+  public var onProgress: URLSessionJobManager.OnProgress? = nil
 
   @JobInject private var manager: URLSessionJobManager
 
@@ -522,7 +581,10 @@ public struct URLSessionUploadFileJob: ResultJob {
 
   public func execute() async throws -> URLSessionJobResponse {
 
-    let response = try await manager.upload(fromFile: fromFile, request: request, progress: progress)
+    let response = try await manager.upload(fromFile: fromFile,
+                                            request: request,
+                                            onStart: onStart,
+                                            onProgress: onProgress)
 
     guard (200 ..< 299).contains(response.statusCode) else {
       throw URLSessionJobError.invalidResponseStatus
@@ -535,7 +597,8 @@ public struct URLSessionUploadFileJob: ResultJob {
     var new = URLSessionUploadFileJob()
     new.fromFile = fromFile
     new._request = _request
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
@@ -543,7 +606,8 @@ public struct URLSessionUploadFileJob: ResultJob {
     var new = URLSessionUploadFileJob()
     new.$fromFile.bind(job: jobBuilder())
     new._request = _request
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
@@ -551,7 +615,8 @@ public struct URLSessionUploadFileJob: ResultJob {
     var new = URLSessionUploadFileJob()
     new._fromFile = _fromFile
     new.request = request
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
@@ -559,15 +624,26 @@ public struct URLSessionUploadFileJob: ResultJob {
     var new = URLSessionUploadFileJob()
     new._fromFile = _fromFile
     new.$request.bind(job: jobBuilder())
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
-  public func progress(progress: @escaping URLSessionJobManager.Progress) -> URLSessionUploadFileJob {
+  public func onStart(_ onStart: @escaping URLSessionJobManager.OnStart) -> URLSessionUploadFileJob {
     var new = URLSessionUploadFileJob()
     new._fromFile = _fromFile
     new._request = _request
-    new.progress = progress
+    new.onStart = onStart
+    new.onProgress = onProgress
+    return new
+  }
+
+  public func onProgress(_ onProgress: @escaping URLSessionJobManager.OnProgress) -> URLSessionUploadFileJob {
+    var new = URLSessionUploadFileJob()
+    new._fromFile = _fromFile
+    new._request = _request
+    new.onStart = onStart
+    new.onProgress = onProgress
     return new
   }
 
