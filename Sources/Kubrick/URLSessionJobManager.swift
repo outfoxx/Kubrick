@@ -32,12 +32,7 @@ public actor URLSessionJobManager {
 
     weak var owner: URLSessionJobManager?
 
-    public override init() {
-      super.init()
-      self.owner = nil
-    }
-
-    public func urlSession(
+    open func urlSession(
       _ session: URLSession,
       task: URLSessionTask,
       didSendBodyData bytesSent: Int64,
@@ -64,7 +59,7 @@ public actor URLSessionJobManager {
       }
     }
 
-    public func urlSession(
+    open func urlSession(
       _ session: URLSession,
       downloadTask task: URLSessionDownloadTask,
       didWriteData bytesWritten: Int64,
@@ -91,7 +86,7 @@ public actor URLSessionJobManager {
       }
     }
 
-    public func urlSession(
+    open func urlSession(
       _ session: URLSession,
       downloadTask task: URLSessionDownloadTask,
       didFinishDownloadingTo location: URL
@@ -150,7 +145,7 @@ public actor URLSessionJobManager {
       }
     }
 
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    open func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
       guard let owner else { return }
 
       if let error {
