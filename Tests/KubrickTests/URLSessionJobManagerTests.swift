@@ -10,7 +10,7 @@
 
 import CryptoKit
 import Foundation
-@testable import Kubrick
+import Kubrick
 import PotentCodables
 import Sunday
 import SundayServer
@@ -537,6 +537,117 @@ class URLSessionJobManagerTests: XCTestCase {
     try await director.submit(MainJob(fromFile: nonExistentFileURL, toURL: nonExistentServerURL))
 
     await fulfillment(of: [executed], timeout: 3)
+  }
+
+  func test_CustomDelegate() async throws {
+
+    let testServer = try RoutingHTTPServer {
+      Path("/test-file") {
+        GET { _, response in
+
+          response
+            .start(status: .ok, headers: [
+              HTTP.StdHeaders.contentType: [MediaType.octetStream.value],
+              HTTP.StdHeaders.contentLength: [(1024 * 512).description],
+            ])
+
+          let chunk = Data((0..<1024).map { _ in UInt8.random(in: .min ..< .max) })
+
+          for chunkIdx in 1 ... 512 {
+            response.server.queue.asyncAfter(deadline: .now().advanced(by: .milliseconds(chunkIdx * 2))) {
+              response.send(body: chunk, final: chunkIdx >= 512)
+            }
+          }
+        }
+      }
+    }
+
+    guard let serverURL = testServer.startLocal(timeout: 1) else {
+      return XCTFail("Unable to start server")
+    }
+
+    class CustomDelegate: URLSessionJobManagerDelegate {
+
+      public func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+        NotificationCenter.default.post(name: .init("test_CustomDelegate.delegate.started"), object: nil)
+      }
+
+    }
+
+    struct MainJob: SubmittableJob {
+      @JobInput var url: URL
+      @JobInput var download: URLSessionDownloadJobResult
+
+      init(url: URL) {
+        self.url = url
+        self.$download.bind {
+          URLSessionDownloadFileJob()
+            .request(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData))
+            .onProgress(Self.onProgress)
+        }
+      }
+
+      static func onProgress(progressedBytes: Int, transferredBytes: Int, totalBytes: Int) {
+        NotificationCenter.default.post(name: .init("test_CustomDelegate.main.progressed"),
+                                        object: nil,
+                                        userInfo: [
+                                          "progressed": progressedBytes,
+                                          "transferred": transferredBytes,
+                                          "total": totalBytes
+                                        ])
+      }
+
+      func execute() async {
+        NotificationCenter.default.post(name: .init("test_CustomDelegate.main.executed"),
+                                        object: nil,
+                                        userInfo: ["download": download])
+      }
+
+      init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.init(url: try container.decode(URL.self))
+      }
+
+      func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(url)
+      }
+    }
+
+    let typeResolver = TypeNameTypeResolver(jobs: [
+      MainJob.self
+    ])
+
+    let requestURL = serverURL.appendingPathComponent("test-file")
+
+    director = try JobDirector(directory: FileManager.default.temporaryDirectory, typeResolver: typeResolver)
+    director.injected[URLSessionJobManager.self] = URLSessionJobManager(director: director,
+                                                                        primaryConfiguration: .default,
+                                                                        primaryDelegate: CustomDelegate())
+
+    try await director.start()
+
+    let startedEx = expectation(forNotification: .init("test_CustomDelegate.delegate.started"), object: nil)
+
+    let progressedEx = expectation(forNotification: .init("test_CustomDelegate.main.progressed"), object: nil)
+    progressedEx.expectedFulfillmentCount = 3
+    progressedEx.assertForOverFulfill = false
+
+    let executedEx = expectation(forNotification: .init("test_CustomDelegate.main.executed"), object: nil) { not in
+      guard
+        let download = not.userInfo?["download"] as? URLSessionDownloadJobResult,
+        let fileSize = try? download.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+        fileSize == 1024 * 512
+      else {
+        return false
+      }
+
+      return download.response.statusCode == 200 && download.response.url == requestURL
+    }
+
+    try await director.submit(MainJob(url: requestURL))
+
+    await fulfillment(of: [startedEx, progressedEx, executedEx], timeout: 3)
   }
 
 }
