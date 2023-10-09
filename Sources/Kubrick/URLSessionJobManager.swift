@@ -296,17 +296,17 @@ public actor URLSessionJobManager {
   private let sessionDelegatesQueue: OperationQueue
   private let taskJobInfoCache = RegisterCache<JobKey, URLSessionTaskJobInfo>()
 
-  public init(director: JobDirector, primaryConfiguration: URLSessionConfiguration) {
+  public init(director: JobDirector, primaryConfiguration: URLSessionConfiguration, primaryDelegate: Delegate? = nil) {
     self.director = director
     self.sessionDelegatesQueue = OperationQueue()
     self.sessionDelegatesQueue.maxConcurrentOperationCount = 1
     self.sessionDelegatesQueue.isSuspended = true
 
-    let delegate = Delegate()
+    let primaryDelegate = primaryDelegate ?? Delegate()
     self.primarySession = URLSession(configuration: primaryConfiguration,
-                                     delegate: delegate,
+                                     delegate: primaryDelegate,
                                      delegateQueue: sessionDelegatesQueue)
-    delegate.owner = self
+    primaryDelegate.owner = self
 
     self.sessionDelegatesQueue.isSuspended = false
   }
