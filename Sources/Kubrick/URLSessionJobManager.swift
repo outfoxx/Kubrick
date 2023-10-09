@@ -28,16 +28,13 @@ public actor URLSessionJobManager {
   public typealias OnStart = (_ director: JobDirector, _ task: URLSessionTask) async throws -> Void
   public typealias OnProgress = (_ progressedBytes: Int, _ transferredBytes: Int, _ totalBytes: Int) async -> Void
 
-  public class Delegate: NSObject, URLSessionDownloadDelegate {
+  open class Delegate: NSObject, URLSessionDownloadDelegate {
 
     weak var owner: URLSessionJobManager?
 
-    init(owner: URLSessionJobManager? = nil) {
-      self.owner = owner
-    }
-
-    func queueTask(session: URLSession, operation: @Sendable @escaping () async throws -> Void) {
-      session.delegateQueue.addOperation(TaskOperation(operation: operation))
+    public override init() {
+      super.init()
+      self.owner = nil
     }
 
     public func urlSession(
@@ -177,6 +174,10 @@ public actor URLSessionJobManager {
       }
     }
 
+    public func queueTask(session: URLSession, operation: @Sendable @escaping () async throws -> Void) {
+      session.delegateQueue.addOperation(TaskOperation(operation: operation))
+    }
+
   }
 
   actor DownloadTaskJobInfo: URLSessionTaskJobInfo {
@@ -310,8 +311,10 @@ public actor URLSessionJobManager {
     self.sessionDelegatesQueue.isSuspended = false
   }
 
-  public func addSecondarySession(configuration: URLSessionConfiguration) {
-    let delegate = Delegate(owner: self)
+  public func addSecondarySession(configuration: URLSessionConfiguration, delegate: Delegate? = nil) {
+    let delegate = delegate ?? Delegate()
+    delegate.owner = self
+
     let urlSession = URLSession(configuration: configuration, delegate: delegate, delegateQueue: sessionDelegatesQueue)
     secondardarySessions.append(urlSession)
   }
