@@ -95,19 +95,26 @@ public enum NSErrorCodingTransformer: ValueCodingTransformer {
   }
 
   public func encode(_ value: NSError) throws -> Data {
+
+    func clean(_ value: [String: Any]) -> [String: Any] {
+      return value.compactMapValues { value in
+        if let error = value as? NSError {
+          return NSError(domain: error.domain, code: error.code, userInfo: clean(error.userInfo))
+        }
+        if let dict = value as? [String: Any] {
+          return clean(dict)
+        }
+        return value as? NSSecureCoding
+      }
+    }
+
     do {
-      return try NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: true)
+      let cleaned = NSError(domain: value.domain, code: value.code, userInfo: clean(value.userInfo))
+      return try NSKeyedArchiver.archivedData(withRootObject: cleaned, requiringSecureCoding: true)
     }
     catch {
       throw Error.unknownError
     }
   }
-
-}
-
-
-extension CodingUserInfoKey {
-
-
 
 }
