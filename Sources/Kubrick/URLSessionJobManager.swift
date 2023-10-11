@@ -90,7 +90,7 @@ open class URLSessionJobManagerDelegate: NSObject, URLSessionDownloadDelegate {
 
     logger.debug("[\(task.taskIdentifier)] Download finished")
 
-    let result: Result<URL, Error>
+    let result: ExecuteResult<URL>
     do {
       let temporaryDir = try FileManager.default.url(for: .itemReplacementDirectory,
                                                      in: .userDomainMask,

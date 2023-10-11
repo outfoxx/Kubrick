@@ -42,6 +42,20 @@ extension Optional: JobHashable where Wrapped: JobHashable {
 
 }
 
+extension ExecuteResult: JobHashable where Success: JobHashable {
+
+  public func jobHash<Hasher: JobHasher>(into hasher: inout Hasher) throws {
+    switch self {
+    case .success(let value):
+      try value.jobHash(into: &hasher)
+
+    case .failure(let error):
+      try hasher.update(data: CBOREncoder.deterministic.encode(JobErrorBox(error)))
+    }
+  }
+
+}
+
 extension Result: JobHashable where Success: JobHashable {
 
   public func jobHash<Hasher: JobHasher>(into hasher: inout Hasher) throws {

@@ -181,6 +181,8 @@ class DirectoryWatcherTests: XCTestCase {
       let lockerSourceURL = pkgDir.appendingPathComponent("Tests/Tools/Locker.swift")
       let lockerURL = pkgDir.appendingPathComponent(".build/Tools/Locker")
 
+      try XCTSkipIf(try lockerSourceURL.checkResourceIsReachable())
+
       try FileManager.default.createDirectory(at: lockerURL.deletingLastPathComponent(),
                                               withIntermediateDirectories: true)
 

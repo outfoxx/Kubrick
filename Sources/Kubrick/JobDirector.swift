@@ -401,18 +401,18 @@ public actor JobDirector: Identifiable {
         }
       }
 
-      var resolved: ResolvedInputs = []
-      for try await result in group {
+      var resolvedInputs: ResolvedInputs = []
+      for try await resolvedInput in group {
 
-        if result.result.isFailure && !result.result.isTransfer {
+        if resolvedInput.result.isFailure && !resolvedInput.result.isTransfer {
 
           logger.jobTrace {
             $0.trace(
               """
               [\(jobID)] Input resolve failed: \
               job-type=\(type(of: job)), \
-              value-type=\(result.resultType), \
-              error=\(String(describing: result))
+              value-type=\(resolvedInput.resultType), \
+              error=\(String(describing: resolvedInput))
               """
             )
           }
@@ -420,10 +420,10 @@ public actor JobDirector: Identifiable {
           group.cancelAll()
         }
 
-        resolved.append(result)
+        resolvedInputs.append(resolvedInput)
       }
 
-      return resolved
+      return resolvedInputs
     }
 
     @Sendable func resolveInput(_ inputDescriptor: some JobInputDescriptor) async throws -> ResolvedInput {

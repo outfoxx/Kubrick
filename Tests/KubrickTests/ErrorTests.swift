@@ -8,7 +8,6 @@
 //  Distributed under the MIT License, See LICENSE for details.
 //
 
-import AsyncObjects
 import Foundation
 @testable import Kubrick
 import PotentCodables
@@ -163,7 +162,7 @@ class ErrorTests: XCTestCase {
       let onCancel: () -> Void
       func execute() async throws {
         do {
-          try await AsyncSemaphore(value: 0).wait()
+          try await Task.sleep(until: Date().addingTimeInterval(60 * 60 * 24))
         }
         catch {
           onCancel()

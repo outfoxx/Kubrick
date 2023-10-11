@@ -12,11 +12,67 @@ import Foundation
 import PotentCodables
 
 
-public typealias JobResult<Success: JobValue> = Result<Success, Error>
-public typealias AnyJobResult = Result<any JobValue, Error>
+#if !DISABLE_RESULT_REPLACE
+
+public enum ExecuteResult<Success> {
+  case success(Success)
+  case failure(Error)
+
+  public func get() throws -> Success {
+    switch self {
+    case .success(let value):
+      return value
+    case .failure(let error):
+      throw error
+    }
+  }
+
+}
+
+#else
+
+public typealias ExecuteResult<Success> = Swift.Result<Success, Error>
+
+#endif
 
 
-extension JobResult {
+public typealias JobResult<Success: JobValue> = ExecuteResult<Success>
+public typealias AnyJobResult = ExecuteResult<any JobValue>
+
+
+extension ExecuteResult: Codable where Success: Codable {
+
+  enum CodingKeys: CodingKey {
+    case success
+    case failure
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    if container.contains(.success) {
+      let value = try container.decode(Success.self, forKey: .success)
+      self = .success(value)
+    }
+    else {
+      let errorBox = try container.decode(JobErrorBox.self, forKey: .failure)
+      self = .failure(errorBox.error)
+    }
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    switch self {
+    case .success(let value):
+      try container.encode(value, forKey: .success)
+    case .failure(let error):
+      try container.encode(JobErrorBox(error), forKey: .failure)
+    }
+  }
+
+}
+
+
+extension ExecuteResult {
 
   var isSuccess: Bool {
     guard case .success = self else {
@@ -32,10 +88,30 @@ extension JobResult {
     return true
   }
 
+  var wrapped: ExecuteResult<Success?> {
+    switch self {
+    case .success(let value): return .success(value)
+    case .failure(let error): return .failure(error)
+    }
+  }
+
+  func unwrapNonFailed<Value: JobValue>(_ type: Value.Type = Value.self) throws -> Value {
+    switch self {
+    case .success(let value):
+      guard let value = value as? Value else {
+        throw JobExecutionError.invariantViolation(.inputResultInvalid)
+      }
+      return value
+
+    case .failure:
+      throw JobExecutionError.invariantViolation(.executeInvokedWithFailedInput)
+    }
+  }
+
 }
 
 
-extension JobResult: Codable where Success: Codable {
+extension Result: Codable where Success: Codable {
 
   enum CodingKeys: CodingKey {
     case success
@@ -66,35 +142,6 @@ extension JobResult: Codable where Success: Codable {
       try container.encode(value, forKey: .success)
     case .failure(let error):
       try container.encode(JobErrorBox(error), forKey: .failure)
-    }
-  }
-
-}
-
-
-extension JobResult {
-
-  var wrapped: Result<Success?, Failure> {
-    switch self {
-    case .success(let value): return .success(value)
-    case .failure(let error): return .failure(error)
-    }
-  }
-
-}
-
-extension Result {
-
-  func unwrapNonFailed<Value: JobValue>(_ type: Value.Type = Value.self) throws -> Value {
-    switch self {
-    case .success(let value):
-      guard let value = value as? Value else {
-        throw JobExecutionError.invariantViolation(.inputResultInvalid)
-      }
-      return value
-
-    case .failure:
-      throw JobExecutionError.invariantViolation(.executeInvokedWithFailedInput)
     }
   }
 

@@ -144,7 +144,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     struct MainJob: SubmittableJob {
       @JobInput var url: URL
-      @JobInput var download: Result<URLSessionDownloadJobResult, Error>
+      @JobInput var download: ExecuteResult<URLSessionDownloadJobResult>
 
       init(url: URL) {
         self.url = url
@@ -190,7 +190,7 @@ class URLSessionJobManagerTests: XCTestCase {
                                object: nil) { not in
 
       guard
-        let result = not.userInfo?["result"] as? Result<URLSessionDownloadJobResult, Error>,
+        let result = not.userInfo?["result"] as? ExecuteResult<URLSessionDownloadJobResult>,
         case .failure(let error) = result
       else {
         return false
@@ -208,7 +208,7 @@ class URLSessionJobManagerTests: XCTestCase {
 
     struct MainJob: SubmittableJob {
       @JobInput var url: URL
-      @JobInput var download: Result<URLSessionDownloadJobResult, Error>
+      @JobInput var download: ExecuteResult<URLSessionDownloadJobResult>
 
       init(url: URL) {
         self.url = url
@@ -254,7 +254,7 @@ class URLSessionJobManagerTests: XCTestCase {
                                object: nil) { not in
 
       guard
-        let result = not.userInfo?["result"] as? Result<URLSessionDownloadJobResult, Error>,
+        let result = not.userInfo?["result"] as? ExecuteResult<URLSessionDownloadJobResult>,
         case .failure(let error) = result
       else {
         return false
@@ -386,7 +386,7 @@ class URLSessionJobManagerTests: XCTestCase {
     struct MainJob: SubmittableJob {
       @JobInput var fromFile: URL
       @JobInput var toURL: URL
-      @JobInput var response: Result<URLSessionJobResponse, Error>
+      @JobInput var response: ExecuteResult<URLSessionJobResponse>
 
       init(fromFile: URL, toURL: URL) {
         self.fromFile = fromFile
@@ -447,7 +447,7 @@ class URLSessionJobManagerTests: XCTestCase {
                                object: nil) { not in
 
       guard
-        let result = not.userInfo?["response"] as? Result<URLSessionJobResponse, Error>,
+        let result = not.userInfo?["response"] as? ExecuteResult<URLSessionJobResponse>,
         case .failure(let error) = result
       else {
         return false
@@ -466,7 +466,7 @@ class URLSessionJobManagerTests: XCTestCase {
     struct MainJob: SubmittableJob {
       @JobInput var fromFile: URL
       @JobInput var toURL: URL
-      @JobInput var response: Result<URLSessionJobResponse, Error>
+      @JobInput var response: ExecuteResult<URLSessionJobResponse>
 
       init(fromFile: URL, toURL: URL) {
         self.fromFile = fromFile
@@ -524,7 +524,7 @@ class URLSessionJobManagerTests: XCTestCase {
                                object: nil) { not in
 
       guard
-        let result = not.userInfo?["response"] as? Result<URLSessionJobResponse, Error>,
+        let result = not.userInfo?["response"] as? ExecuteResult<URLSessionJobResponse>,
         case .failure(let error) = result
       else {
         return false

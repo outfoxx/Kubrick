@@ -82,7 +82,7 @@ class MapJobTests: XCTestCase {
     }
 
     struct MainJob: SubmittableJob {
-      @JobInput var count: Result<Int, Error>
+      @JobInput var count: ExecuteResult<Int>
       init() {
         self.$count.bind {
           IntJob()
@@ -108,7 +108,7 @@ class MapJobTests: XCTestCase {
 
     let executed = expectation(forNotification: .init("test_MappingValuesToResults.main"), object: nil) { not in
       guard 
-        let result = not.userInfo?["result"] as? Result<Int, Error>,
+        let result = not.userInfo?["result"] as? ExecuteResult<Int>,
         case .success(let count) = result
       else {
         return false
@@ -130,7 +130,7 @@ class MapJobTests: XCTestCase {
     }
 
     struct MainJob: SubmittableJob {
-      @JobInput var count: Result<Int, Error>
+      @JobInput var count: ExecuteResult<Int>
       init() {
         self.$count.bind {
           ThrowingJob()
@@ -155,7 +155,7 @@ class MapJobTests: XCTestCase {
 
     let executed = expectation(forNotification: .init("test_MappingErrorsToResults.main"), object: nil) { not in
       guard
-        let result = not.userInfo?["result"] as? Result<Int, Error>,
+        let result = not.userInfo?["result"] as? ExecuteResult<Int>,
         case .failure(let error) = result
       else {
         return false

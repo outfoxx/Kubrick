@@ -11,8 +11,9 @@
 import Foundation
 
 
-public typealias JobInputResult<Value: JobHashable> = Result<Value, Error>
-public typealias AnyJobInputResult = Result<any JobHashable, Error>
+public typealias JobInputResult<Value: JobHashable> = ExecuteResult<Value>
+public typealias AnyJobInputResult = ExecuteResult<any JobHashable>
+
 
 public protocol JobInputDescriptor {
   

@@ -20,8 +20,8 @@ public protocol DynamicJobDirector {
   func run<DynamicJob: Job>(job: DynamicJob) async throws -> DynamicJob.Value
   func run<DynamicJob: Job>(job: DynamicJob) async throws where DynamicJob.Value == NoValue
 
-  func result<DynamicJob: Job>(for job: DynamicJob) async -> Result<DynamicJob.Value, Error>
-  func result<DynamicJob: Job>(for job: DynamicJob) async -> Result<Void, Error> where DynamicJob.Value == NoValue
+  func result<DynamicJob: Job>(for job: DynamicJob) async -> ExecuteResult<DynamicJob.Value>
+  func result<DynamicJob: Job>(for job: DynamicJob) async -> ExecuteResult<Void> where DynamicJob.Value == NoValue
 
 }
 
@@ -45,7 +45,7 @@ struct CurrentDynamicJobDirector: DynamicJobDirector {
     _ = try await director.resolve(job, as: parentJobKey.id, tags: parentJobKey.tags)
   }
 
-  func result<DynamicJob: Job>(for job: DynamicJob) async -> Result<DynamicJob.Value, Error> {
+  func result<DynamicJob: Job>(for job: DynamicJob) async -> ExecuteResult<DynamicJob.Value> {
 
     logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
 
@@ -65,7 +65,7 @@ struct CurrentDynamicJobDirector: DynamicJobDirector {
     }
   }
 
-  func result<DynamicJob: Job>(for job: DynamicJob) async -> Result<Void, Error> where DynamicJob.Value == NoValue {
+  func result<DynamicJob: Job>(for job: DynamicJob) async -> ExecuteResult<Void> where DynamicJob.Value == NoValue {
 
     logger.jobTrace { $0.debug("[\(parentJobKey)] Running dynamic job: job-type=\(DynamicJob.self)") }
 

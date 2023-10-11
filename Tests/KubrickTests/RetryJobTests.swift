@@ -137,7 +137,7 @@ class RetryJobTests: XCTestCase {
                                         userInfo: ["total": count1 + count2])
       }
 
-      init(from: Decoder) throws {}
+      init(from: Decoder) throws { self.init() }
       func encode(to encoder: Encoder) throws {}
     }
 
@@ -218,7 +218,7 @@ class RetryJobTests: XCTestCase {
     }
 
     struct MainJob: SubmittableJob {
-      @JobInput var count: Result<Int, Error>
+      @JobInput var count: ExecuteResult<Int>
       init() {
         self.$count.bind {
           ThrowingJob()
@@ -242,7 +242,7 @@ class RetryJobTests: XCTestCase {
 
     let executed = expectation(forNotification: .init("test_RetriesFail.main"), object: nil) { not in
       guard 
-        let count = not.userInfo?["count"] as? Result<Int, Error>,
+        let count = not.userInfo?["count"] as? ExecuteResult<Int>,
         case .failure(let error) = count
       else {
         return false

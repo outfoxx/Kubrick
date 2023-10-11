@@ -16,7 +16,7 @@ public enum JobTransferError: Error, Codable {
 }
 
 
-extension JobResult {
+extension ExecuteResult {
 
   var isTransfer: Bool {
     guard

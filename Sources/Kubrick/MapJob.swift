@@ -11,23 +11,23 @@
 import Foundation
 
 
-struct MapJob<SourceJob: Job, NewValue: JobValue>: Job {
+public struct MapJob<SourceJob: Job, NewValue: JobValue>: Job {
 
   public typealias Value = NewValue
 
   let source: (id: UUID, job: SourceJob)
   let transform: (SourceJob.Value) async throws -> NewValue
 
-  init(source: SourceJob, transform: @escaping (SourceJob.Value) async throws -> NewValue) {
+  public init(source: SourceJob, transform: @escaping (SourceJob.Value) async throws -> NewValue) {
     self.source = (UUID(), source)
     self.transform = transform
   }
 
-  var inputDescriptors: [any JobInputDescriptor] {
+  public var inputDescriptors: [any JobInputDescriptor] {
     return [AdHocJobInputDescriptor(id: source.id, job: source.job)]
   }
 
-  func execute(
+  public func execute(
     as jobKey: JobKey,
     with inputResults: JobInputResults,
     for director: JobDirector
@@ -62,7 +62,7 @@ public extension Job {
     return MapJob(source: self, transform: transform)
   }
 
-  func mapToResult() -> some Job<Result<Value, Error>> {
+  func mapToResult() -> some Job<ExecuteResult<Value>> {
     return map { .success($0) }.catch { .failure($0) }
   }
 
