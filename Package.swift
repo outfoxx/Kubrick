@@ -11,9 +11,7 @@ let package = Package(
     .watchOS(.v8)
   ],
   products: [
-    .library(
-      name: "Kubrick",
-      targets: ["Kubrick"]),
+    .library(name: "Kubrick", targets: ["Kubrick"]),
   ],
   dependencies: [
     .package(url: "https://github.com/SwiftyLab/AsyncObjects.git", .upToNextMinor(from: "2.1.0")),
@@ -29,6 +27,9 @@ let package = Package(
         .product(name: "IOStreams", package: "iostreams"),
         .product(name: "PotentCodables", package: "potentcodables"),
         .product(name: "FriendlyId", package: "SwiftFriendlyId")
+      ],
+      resources: [
+        .process("Kubrick.docc")
       ]
     )
   ]

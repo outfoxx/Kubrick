@@ -46,24 +46,6 @@
       }
     },
     {
-      "identity" : "regex",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sharplet/Regex.git",
-      "state" : {
-        "revision" : "76c2b73d4281d77fc3118391877efd1bf972f515",
-        "version" : "2.1.1"
-      }
-    },
-    {
-      "identity" : "sunday-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/outfoxx/sunday-swift.git",
-      "state" : {
-        "revision" : "307e6ca46f5ff3a54d9d7699599b4f9e4097bfcc",
-        "version" : "1.0.0-beta.27"
-      }
-    },
-    {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser",
@@ -106,15 +88,6 @@
       "state" : {
         "revision" : "cfb7ad44ab962ed5cadcb91ebe7ec29d08ecd9c3",
         "version" : "1.3.1"
-      }
-    },
-    {
-      "identity" : "uritemplate",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftScream/URITemplate.git",
-      "state" : {
-        "revision" : "c36e52f4c10fe3cb86f4ba723bb2e69308ab5bbe",
-        "version" : "2.1.0"
       }
     }
   ],
