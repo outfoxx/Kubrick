@@ -371,8 +371,8 @@ class DirectoryWatcherTests: XCTestCase {
 
 }
 
-
 func shell(_ args: String...) async throws -> Void {
+#if os(macOS)
 
   enum Error: Swift.Error {
     case executeFailed(String)
@@ -405,4 +405,5 @@ func shell(_ args: String...) async throws -> Void {
   } onCancel: {
     p.terminate()
   }
+#endif
 }
