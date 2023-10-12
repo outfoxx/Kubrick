@@ -1,0 +1,575 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AAF143442AD6243F00CEF3A6 /* KubrickHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143432AD6243F00CEF3A6 /* KubrickHostApp.swift */; };
+		AAF1437D2AD624D100CEF3A6 /* JobEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1436F2AD624D100CEF3A6 /* JobEnvironmentTests.swift */; };
+		AAF1437E2AD624D100CEF3A6 /* RetryJobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143702AD624D100CEF3A6 /* RetryJobTests.swift */; };
+		AAF1437F2AD624D100CEF3A6 /* JobDirectorStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143712AD624D100CEF3A6 /* JobDirectorStoreTests.swift */; };
+		AAF143802AD624D100CEF3A6 /* JobBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143722AD624D100CEF3A6 /* JobBuilderTests.swift */; };
+		AAF143812AD624D100CEF3A6 /* DirectoryWatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143732AD624D100CEF3A6 /* DirectoryWatcherTests.swift */; };
+		AAF143822AD624D100CEF3A6 /* MapJobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143742AD624D100CEF3A6 /* MapJobTests.swift */; };
+		AAF143832AD624D100CEF3A6 /* TasksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143752AD624D100CEF3A6 /* TasksTests.swift */; };
+		AAF143842AD624D100CEF3A6 /* ErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143762AD624D100CEF3A6 /* ErrorTests.swift */; };
+		AAF143852AD624D100CEF3A6 /* JobDirectorAssistantsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143772AD624D100CEF3A6 /* JobDirectorAssistantsTests.swift */; };
+		AAF143862AD624D100CEF3A6 /* JobInjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143782AD624D100CEF3A6 /* JobInjectTests.swift */; };
+		AAF143872AD624D100CEF3A6 /* JobDirectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143792AD624D100CEF3A6 /* JobDirectorTests.swift */; };
+		AAF143882AD624D100CEF3A6 /* TimeDurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1437A2AD624D100CEF3A6 /* TimeDurationTests.swift */; };
+		AAF143892AD624D100CEF3A6 /* ExternalJobKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1437B2AD624D100CEF3A6 /* ExternalJobKeyTests.swift */; };
+		AAF1438A2AD624D100CEF3A6 /* URLSessionJobManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1437C2AD624D100CEF3A6 /* URLSessionJobManagerTests.swift */; };
+		AAF1438D2AD628D500CEF3A6 /* Kubrick in Frameworks */ = {isa = PBXBuildFile; productRef = AAF1438C2AD628D500CEF3A6 /* Kubrick */; };
+		AAF143902AD6291500CEF3A6 /* SundayServer in Frameworks */ = {isa = PBXBuildFile; productRef = AAF1438F2AD6291500CEF3A6 /* SundayServer */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AAF143522AD6244000CEF3A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AAF143382AD6243F00CEF3A6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AAF1433F2AD6243F00CEF3A6;
+			remoteInfo = KubrickHost;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		AAF143402AD6243F00CEF3A6 /* KubrickHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KubrickHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAF143432AD6243F00CEF3A6 /* KubrickHostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubrickHostApp.swift; sourceTree = "<group>"; };
+		AAF143492AD6244000CEF3A6 /* KubrickHost.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KubrickHost.entitlements; sourceTree = "<group>"; };
+		AAF143512AD6244000CEF3A6 /* KubrickHostTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KubrickHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAF1436E2AD624A800CEF3A6 /* Kubrick */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Kubrick; path = ..; sourceTree = "<group>"; };
+		AAF1436F2AD624D100CEF3A6 /* JobEnvironmentTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = JobEnvironmentTests.swift; path = ../../Tests/KubrickTests/JobEnvironmentTests.swift; sourceTree = "<group>"; };
+		AAF143702AD624D100CEF3A6 /* RetryJobTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = RetryJobTests.swift; path = ../../Tests/KubrickTests/RetryJobTests.swift; sourceTree = "<group>"; };
+		AAF143712AD624D100CEF3A6 /* JobDirectorStoreTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = JobDirectorStoreTests.swift; path = ../../Tests/KubrickTests/JobDirectorStoreTests.swift; sourceTree = "<group>"; };
+		AAF143722AD624D100CEF3A6 /* JobBuilderTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = JobBuilderTests.swift; path = ../../Tests/KubrickTests/JobBuilderTests.swift; sourceTree = "<group>"; };
+		AAF143732AD624D100CEF3A6 /* DirectoryWatcherTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DirectoryWatcherTests.swift; path = ../../Tests/KubrickTests/DirectoryWatcherTests.swift; sourceTree = "<group>"; };
+		AAF143742AD624D100CEF3A6 /* MapJobTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = MapJobTests.swift; path = ../../Tests/KubrickTests/MapJobTests.swift; sourceTree = "<group>"; };
+		AAF143752AD624D100CEF3A6 /* TasksTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = TasksTests.swift; path = ../../Tests/KubrickTests/TasksTests.swift; sourceTree = "<group>"; };
+		AAF143762AD624D100CEF3A6 /* ErrorTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ErrorTests.swift; path = ../../Tests/KubrickTests/ErrorTests.swift; sourceTree = "<group>"; };
+		AAF143772AD624D100CEF3A6 /* JobDirectorAssistantsTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = JobDirectorAssistantsTests.swift; path = ../../Tests/KubrickTests/JobDirectorAssistantsTests.swift; sourceTree = "<group>"; };
+		AAF143782AD624D100CEF3A6 /* JobInjectTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = JobInjectTests.swift; path = ../../Tests/KubrickTests/JobInjectTests.swift; sourceTree = "<group>"; };
+		AAF143792AD624D100CEF3A6 /* JobDirectorTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = JobDirectorTests.swift; path = ../../Tests/KubrickTests/JobDirectorTests.swift; sourceTree = "<group>"; };
+		AAF1437A2AD624D100CEF3A6 /* TimeDurationTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = TimeDurationTests.swift; path = ../../Tests/KubrickTests/TimeDurationTests.swift; sourceTree = "<group>"; };
+		AAF1437B2AD624D100CEF3A6 /* ExternalJobKeyTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ExternalJobKeyTests.swift; path = ../../Tests/KubrickTests/ExternalJobKeyTests.swift; sourceTree = "<group>"; };
+		AAF1437C2AD624D100CEF3A6 /* URLSessionJobManagerTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = URLSessionJobManagerTests.swift; path = ../../Tests/KubrickTests/URLSessionJobManagerTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AAF1433D2AD6243F00CEF3A6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAF1438D2AD628D500CEF3A6 /* Kubrick in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAF1434E2AD6244000CEF3A6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAF143902AD6291500CEF3A6 /* SundayServer in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AAF143372AD6243F00CEF3A6 = {
+			isa = PBXGroup;
+			children = (
+				AAF1436E2AD624A800CEF3A6 /* Kubrick */,
+				AAF143422AD6243F00CEF3A6 /* KubrickHost */,
+				AAF143542AD6244000CEF3A6 /* KubrickHostTests */,
+				AAF143412AD6243F00CEF3A6 /* Products */,
+				AAF1438B2AD628D500CEF3A6 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		AAF143412AD6243F00CEF3A6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AAF143402AD6243F00CEF3A6 /* KubrickHost.app */,
+				AAF143512AD6244000CEF3A6 /* KubrickHostTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AAF143422AD6243F00CEF3A6 /* KubrickHost */ = {
+			isa = PBXGroup;
+			children = (
+				AAF143432AD6243F00CEF3A6 /* KubrickHostApp.swift */,
+				AAF143492AD6244000CEF3A6 /* KubrickHost.entitlements */,
+			);
+			path = KubrickHost;
+			sourceTree = "<group>";
+		};
+		AAF143542AD6244000CEF3A6 /* KubrickHostTests */ = {
+			isa = PBXGroup;
+			children = (
+				AAF143732AD624D100CEF3A6 /* DirectoryWatcherTests.swift */,
+				AAF143762AD624D100CEF3A6 /* ErrorTests.swift */,
+				AAF1437B2AD624D100CEF3A6 /* ExternalJobKeyTests.swift */,
+				AAF143722AD624D100CEF3A6 /* JobBuilderTests.swift */,
+				AAF143772AD624D100CEF3A6 /* JobDirectorAssistantsTests.swift */,
+				AAF143712AD624D100CEF3A6 /* JobDirectorStoreTests.swift */,
+				AAF143792AD624D100CEF3A6 /* JobDirectorTests.swift */,
+				AAF1436F2AD624D100CEF3A6 /* JobEnvironmentTests.swift */,
+				AAF143782AD624D100CEF3A6 /* JobInjectTests.swift */,
+				AAF143742AD624D100CEF3A6 /* MapJobTests.swift */,
+				AAF143702AD624D100CEF3A6 /* RetryJobTests.swift */,
+				AAF143752AD624D100CEF3A6 /* TasksTests.swift */,
+				AAF1437A2AD624D100CEF3A6 /* TimeDurationTests.swift */,
+				AAF1437C2AD624D100CEF3A6 /* URLSessionJobManagerTests.swift */,
+			);
+			path = KubrickHostTests;
+			sourceTree = "<group>";
+		};
+		AAF1438B2AD628D500CEF3A6 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AAF1433F2AD6243F00CEF3A6 /* KubrickHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAF143652AD6244000CEF3A6 /* Build configuration list for PBXNativeTarget "KubrickHost" */;
+			buildPhases = (
+				AAF1433C2AD6243F00CEF3A6 /* Sources */,
+				AAF1433D2AD6243F00CEF3A6 /* Frameworks */,
+				AAF1433E2AD6243F00CEF3A6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KubrickHost;
+			packageProductDependencies = (
+				AAF1438C2AD628D500CEF3A6 /* Kubrick */,
+			);
+			productName = KubrickHost;
+			productReference = AAF143402AD6243F00CEF3A6 /* KubrickHost.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AAF143502AD6244000CEF3A6 /* KubrickHostTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAF143682AD6244000CEF3A6 /* Build configuration list for PBXNativeTarget "KubrickHostTests" */;
+			buildPhases = (
+				AAF1434D2AD6244000CEF3A6 /* Sources */,
+				AAF1434E2AD6244000CEF3A6 /* Frameworks */,
+				AAF1434F2AD6244000CEF3A6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AAF143532AD6244000CEF3A6 /* PBXTargetDependency */,
+			);
+			name = KubrickHostTests;
+			packageProductDependencies = (
+				AAF1438F2AD6291500CEF3A6 /* SundayServer */,
+			);
+			productName = KubrickHostTests;
+			productReference = AAF143512AD6244000CEF3A6 /* KubrickHostTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AAF143382AD6243F00CEF3A6 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					AAF1433F2AD6243F00CEF3A6 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					AAF143502AD6244000CEF3A6 = {
+						CreatedOnToolsVersion = 15.0;
+						LastSwiftMigration = 1500;
+						TestTargetID = AAF1433F2AD6243F00CEF3A6;
+					};
+				};
+			};
+			buildConfigurationList = AAF1433B2AD6243F00CEF3A6 /* Build configuration list for PBXProject "KubrickHost" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AAF143372AD6243F00CEF3A6;
+			packageReferences = (
+				AAF1438E2AD6291500CEF3A6 /* XCRemoteSwiftPackageReference "sunday-swift" */,
+			);
+			productRefGroup = AAF143412AD6243F00CEF3A6 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AAF1433F2AD6243F00CEF3A6 /* KubrickHost */,
+				AAF143502AD6244000CEF3A6 /* KubrickHostTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AAF1433E2AD6243F00CEF3A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAF1434F2AD6244000CEF3A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AAF1433C2AD6243F00CEF3A6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAF143442AD6243F00CEF3A6 /* KubrickHostApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAF1434D2AD6244000CEF3A6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAF143842AD624D100CEF3A6 /* ErrorTests.swift in Sources */,
+				AAF143852AD624D100CEF3A6 /* JobDirectorAssistantsTests.swift in Sources */,
+				AAF143862AD624D100CEF3A6 /* JobInjectTests.swift in Sources */,
+				AAF143822AD624D100CEF3A6 /* MapJobTests.swift in Sources */,
+				AAF1438A2AD624D100CEF3A6 /* URLSessionJobManagerTests.swift in Sources */,
+				AAF143832AD624D100CEF3A6 /* TasksTests.swift in Sources */,
+				AAF1437E2AD624D100CEF3A6 /* RetryJobTests.swift in Sources */,
+				AAF143802AD624D100CEF3A6 /* JobBuilderTests.swift in Sources */,
+				AAF143892AD624D100CEF3A6 /* ExternalJobKeyTests.swift in Sources */,
+				AAF143812AD624D100CEF3A6 /* DirectoryWatcherTests.swift in Sources */,
+				AAF143872AD624D100CEF3A6 /* JobDirectorTests.swift in Sources */,
+				AAF1437D2AD624D100CEF3A6 /* JobEnvironmentTests.swift in Sources */,
+				AAF143882AD624D100CEF3A6 /* TimeDurationTests.swift in Sources */,
+				AAF1437F2AD624D100CEF3A6 /* JobDirectorStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AAF143532AD6244000CEF3A6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AAF1433F2AD6243F00CEF3A6 /* KubrickHost */;
+			targetProxy = AAF143522AD6244000CEF3A6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AAF143632AD6244000CEF3A6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AAF143642AD6244000CEF3A6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		AAF143662AD6244000CEF3A6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = KubrickHost/KubrickHost.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.outfoxx.KubrickHost;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AAF143672AD6244000CEF3A6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = KubrickHost/KubrickHost.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.outfoxx.KubrickHost;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		AAF143692AD6244000CEF3A6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7J5T2VZQJW;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.outfoxx.KubrickHostTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KubrickHost.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KubrickHost";
+			};
+			name = Debug;
+		};
+		AAF1436A2AD6244000CEF3A6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7J5T2VZQJW;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.outfoxx.KubrickHostTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KubrickHost.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KubrickHost";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AAF1433B2AD6243F00CEF3A6 /* Build configuration list for PBXProject "KubrickHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAF143632AD6244000CEF3A6 /* Debug */,
+				AAF143642AD6244000CEF3A6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AAF143652AD6244000CEF3A6 /* Build configuration list for PBXNativeTarget "KubrickHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAF143662AD6244000CEF3A6 /* Debug */,
+				AAF143672AD6244000CEF3A6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AAF143682AD6244000CEF3A6 /* Build configuration list for PBXNativeTarget "KubrickHostTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAF143692AD6244000CEF3A6 /* Debug */,
+				AAF1436A2AD6244000CEF3A6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AAF1438E2AD6291500CEF3A6 /* XCRemoteSwiftPackageReference "sunday-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/outfoxx/sunday-swift.git";
+			requirement = {
+				kind = exactVersion;
+				version = "1.0.0-beta.27";
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AAF1438C2AD628D500CEF3A6 /* Kubrick */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Kubrick;
+		};
+		AAF1438F2AD6291500CEF3A6 /* SundayServer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AAF1438E2AD6291500CEF3A6 /* XCRemoteSwiftPackageReference "sunday-swift" */;
+			productName = SundayServer;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AAF143382AD6243F00CEF3A6 /* Project object */;
+}
