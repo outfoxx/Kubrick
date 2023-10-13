@@ -12,7 +12,7 @@ import Foundation
 import PotentCodables
 
 
-#if !DISABLE_RESULT_REPLACE
+#if DISABLE_RESULT_REPLACE
 
 public enum ExecuteResult<Success> {
   case success(Success)
@@ -39,6 +39,8 @@ public typealias ExecuteResult<Success> = Swift.Result<Success, Error>
 public typealias JobResult<Success: JobValue> = ExecuteResult<Success>
 public typealias AnyJobResult = ExecuteResult<any JobValue>
 
+
+#if DISABLE_RESULT_REPLACE
 
 extension ExecuteResult: Codable where Success: Codable {
 
@@ -70,6 +72,8 @@ extension ExecuteResult: Codable where Success: Codable {
   }
 
 }
+
+#endif
 
 
 extension ExecuteResult {

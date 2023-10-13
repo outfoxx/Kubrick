@@ -42,6 +42,8 @@ extension Optional: JobHashable where Wrapped: JobHashable {
 
 }
 
+#if DISABLE_RESULT_REPLACE
+
 extension ExecuteResult: JobHashable where Success: JobHashable {
 
   public func jobHash<Hasher: JobHasher>(into hasher: inout Hasher) throws {
@@ -55,6 +57,8 @@ extension ExecuteResult: JobHashable where Success: JobHashable {
   }
 
 }
+
+#endif
 
 extension Result: JobHashable where Success: JobHashable {
 
