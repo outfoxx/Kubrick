@@ -18,6 +18,8 @@ import PotentCBOR
 private let logger = Logger.for(category: "JobDirector")
 
 
+/// Directs execution of submitted jobs.
+/// 
 public actor JobDirector: Identifiable {
 
   public typealias ID = JobDirectorID
@@ -44,7 +46,7 @@ public actor JobDirector: Identifiable {
   @TaskLocal static var currentJobInputResults: JobInputResults?
 
   public nonisolated let id: ID
-  public nonisolated let directorType: JobDirectorType
+  public nonisolated let mode: JobDirectorMode
   public nonisolated let injected: JobInjectValues
 
   internal let store: JobDirectorStore
@@ -60,13 +62,13 @@ public actor JobDirector: Identifiable {
   public init(
     id: JobDirectorID = .generate(),
     directory: URL,
-    type: JobDirectorType = .principal,
+    mode: JobDirectorMode = .principal,
     typeResolver: SubmittableJobTypeResolver & JobErrorTypeResolver
   ) throws {
     try self.init(
       id: id,
       directory: directory,
-      type: type,
+      mode: mode,
       jobTypeResolver: typeResolver,
       errorTypeResolver: typeResolver
     )
@@ -75,7 +77,7 @@ public actor JobDirector: Identifiable {
   public init(
     id: JobDirectorID,
     directory: URL,
-    type: JobDirectorType,
+    mode: JobDirectorMode,
     jobTypeResolver: SubmittableJobTypeResolver,
     errorTypeResolver: JobErrorTypeResolver
   ) throws {
@@ -94,7 +96,7 @@ public actor JobDirector: Identifiable {
     cborDecoder.userInfo[submittableJobTypeResolverKey] = jobTypeResolver
     cborDecoder.userInfo[jobErrorTypeResolverKey] = allErrorTypesResolver
 
-    let store = try JobDirectorStore(location: Self.storeLocation(id: id, in: directory, type: type),
+    let store = try JobDirectorStore(location: Self.storeLocation(id: id, in: directory, mode: mode),
                                      jobTypeResolver: jobTypeResolver)
 
     let assistantsWatcher =
@@ -102,7 +104,7 @@ public actor JobDirector: Identifiable {
 
     self.init(
       id: id,
-      type: type,
+      mode: mode,
       store: store,
       assistantsWatcher: assistantsWatcher,
       errorTypeResolver: errorTypeResolver,
@@ -113,7 +115,7 @@ public actor JobDirector: Identifiable {
 
   init(
     id: ID,
-    type: JobDirectorType,
+    mode: JobDirectorMode,
     store: JobDirectorStore,
     assistantsWatcher: AssistantsWatcher,
     errorTypeResolver: JobErrorTypeResolver,
@@ -121,7 +123,7 @@ public actor JobDirector: Identifiable {
     jobDecoder: CBORDecoder
   ) {
     self.id = id
-    self.directorType = type
+    self.mode = mode
     self.store = store
     self.assistantsWatcher = assistantsWatcher
     self.injected = JobInjectValues()
@@ -143,7 +145,7 @@ public actor JobDirector: Identifiable {
   public func start() async throws {
     do {
 
-      if directorType.isPrincipal {
+      if mode.isPrincipal {
 
         // Load and start jobs currently in store
 
@@ -228,7 +230,7 @@ public actor JobDirector: Identifiable {
       fatalError("\(#function) must be called from Job.execute")
     }
 
-    guard directorType.isAssistant else {
+    guard mode.isAssistant else {
       return
     }
 
@@ -528,9 +530,9 @@ public actor JobDirector: Identifiable {
     tasks.removeValue(forKey: id)
   }
 
-  static func storeLocation(id: ID, in directory: URL, type: JobDirectorType) throws -> URL {
+  static func storeLocation(id: ID, in directory: URL, mode: JobDirectorMode) throws -> URL {
     let principalLocation = directory.appendingPathComponent(id.description).appendingPathExtension("job-store")
-    switch type {
+    switch mode {
     case .principal:
       try FileManager.default.createDirectory(at: principalLocation, withIntermediateDirectories: true)
       return principalLocation
@@ -540,7 +542,7 @@ public actor JobDirector: Identifiable {
   }
 
   static func assistantsLocation(id: ID, in directory: URL) throws -> URL {
-    let url = try storeLocation(id: id, in: directory, type: .principal).appendingPathComponent("assistants")
+    let url = try storeLocation(id: id, in: directory, mode: .principal).appendingPathComponent("assistants")
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     return url
   }

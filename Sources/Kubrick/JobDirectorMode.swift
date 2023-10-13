@@ -1,5 +1,5 @@
 //
-//  JobDirectorType.swift
+//  JobDirectorMode.swift
 //  Kubrick
 //
 //  Copyright © 2023 Outfox, inc.
@@ -11,7 +11,7 @@
 import Foundation
 
 
-public enum JobDirectorType {
+public enum JobDirectorMode {
   case principal
   case assistant(name: String)
 

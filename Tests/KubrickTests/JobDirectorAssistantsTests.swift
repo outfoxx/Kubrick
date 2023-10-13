@@ -37,7 +37,7 @@ class JobDirectorAssistantsTests: XCTestCase {
 
     let jobID = JobDirectorID.generate()
 
-    XCTAssertEqual(try JobDirector.storeLocation(id: jobID, in: location, type: .assistant(name: "tester")),
+    XCTAssertEqual(try JobDirector.storeLocation(id: jobID, in: location, mode: .assistant(name: "tester")),
                    location.appendingPathComponent("\(jobID).job-store/assistants/tester"))
   }
 
@@ -127,7 +127,7 @@ class JobDirectorAssistantsTests: XCTestCase {
 
     assistant = try JobDirector(id: directorID,
                                 directory: location,
-                                type: .assistant(name: "test"),
+                                mode: .assistant(name: "test"),
                                 typeResolver: typeRes)
     try await assistant.start()
 
@@ -181,7 +181,7 @@ class JobDirectorAssistantsTests: XCTestCase {
 
     assistant = try JobDirector(id: directorID,
                                 directory: location,
-                                type: .assistant(name: "test"),
+                                mode: .assistant(name: "test"),
                                 typeResolver: typeRes)
 
     _ = try await assistant.store.saveJob(MainJob(), as: JobID.generate(), deduplicationExpiration: .now)
@@ -275,7 +275,7 @@ class JobDirectorAssistantsTests: XCTestCase {
 
     director = try JobDirector(id: directorID,
                                directory: FileManager.default.temporaryDirectory,
-                               type: .principal,
+                               mode: .principal,
                                typeResolver: typeResolver)
 
     let directorURLSessionJobManager = URLSessionJobManager(director: director,
@@ -286,7 +286,7 @@ class JobDirectorAssistantsTests: XCTestCase {
 
     assistant = try JobDirector(id: directorID,
                                 directory: FileManager.default.temporaryDirectory,
-                                type: .assistant(name: "test"),
+                                mode: .assistant(name: "test"),
                                 typeResolver: typeResolver)
 
     let assistantURLSessionJobManager = URLSessionJobManager(director: assistant,
@@ -414,7 +414,7 @@ class JobDirectorAssistantsTests: XCTestCase {
 
     director = try JobDirector(id: directorID,
                                directory: FileManager.default.temporaryDirectory,
-                               type: .principal,
+                               mode: .principal,
                                typeResolver: typeResolver)
 
     let directorURLSessionJobManager = URLSessionJobManager(director: director,
@@ -425,7 +425,7 @@ class JobDirectorAssistantsTests: XCTestCase {
 
     assistant = try JobDirector(id: directorID,
                                 directory: FileManager.default.temporaryDirectory,
-                                type: .assistant(name: "test"),
+                                mode: .assistant(name: "test"),
                                 typeResolver: typeResolver)
 
     let assistantURLSessionJobManager = URLSessionJobManager(director: assistant,
