@@ -27,10 +27,6 @@ your job returns a result or not. Implementation is as simple as providing an `e
 Jobs that can be submitted to a ``JobDirector`` are special, and must implement ``SubmittableJob``. Submittable jobs
 must be `Codable` and cannot return a result nor can they throw errors.
 
-> Note: Job submission is fire-and-forget. This coupled with there being no result or errors allowed from
-``SubmittableJob``s, there is no method provided by Kubrick to check the status or outcome of submitted jobs. This
-responsiblity is passed on to the implementor. If you want to track the completion of a submitted job you need to use
-some form of persistence (e.g. CoreData or serializing a `Codable` value to a file).
 
 ## Submitting our first Job
 
@@ -58,7 +54,7 @@ let jobTypeResolver = TypeNameTypeResolver(jobs: [
 ])
 ```
 
-To submit our `HellowWorldJob` we need a ``JobDirector``. To create a simple ``JobDirector`` we need to provide
+To submit our `ExampleJob` we need a ``JobDirector``. To create a simple ``JobDirector`` we need to provide
 a location for the <doc:JobStore> (where the job director saves the state of submitted jobs) and the previously
 created type resolver. Additionally, the director must be started before it can accept jobs.
 
@@ -78,6 +74,11 @@ try await jobDirector.submit(ExampleJob())
 For all our setup, we should now see the result of our `ExampleJob`, in the console:
 
     Hello from our Job!
+
+> Note: Job submission is fire-and-forget. This coupled with there being no result or errors allowed from
+``SubmittableJob``s, there is no method provided by Kubrick to check the status or outcome of submitted jobs. This
+responsiblity is passed on to the implementor. If you want to track the completion of a submitted job you need to use
+some form of persistence (e.g. CoreData or serializing a `Codable` value to a file).
 
 
 ## Job with an input
@@ -113,15 +114,15 @@ struct ExampleJob: SubmittableJob, Codable {
 }
 ```
 
+``JobInput``s can be assigned a constant value (as seen above) or be linked to the output of other Jobs (as we will
+see later). As shown, we make sure to implement `Codable` as required and delegate to the `init(message:)` initializer
+to ensure the Job's ``JobInput``s are properly restored during resurrection.
+
 The new `ExampleJob` can be now be submitted using our new initializer.
 
 ```swift
 try await jobDirector.submit(ExampleJob(message: "Hello from our Job!"))
 ```
-
-``JobInput``s can be assigned a constant value (as seen above) or be linked to the output of other Jobs (as we will
-see later). As shown, we make sure to implement `Codable` as required and delegate to the `init(message:)` initializer
-to ensure the Job's ``JobInput``s are properly restored during resurrection.
 
 > Warning: ``JobInput`` values cannot be read outside of a job's `execute` method. Any attempt to do so will result in
 an fatal assertion failure.
@@ -388,7 +389,7 @@ struct ExampleJob: SubmittableJob, Codable {
   @JobInput var random: Int
 
   init() {
-    self.$retried.bind {
+    self.$random.bind {
       RandomIntJob()
         .catch { _ in return -1 }
     }
@@ -399,12 +400,12 @@ struct ExampleJob: SubmittableJob, Codable {
 ```
 
 In contrast to "normal" processing, where the failure of a dependant job means the job's execute method is never
-called, using `Job/catch(handler:)` ensures the job's `execute` method will be called even if the dependency failed.
+called, using ``Job/catch(handler:)`` ensures the job's `execute` method will be called even if the dependency failed.
 
 
 ### Map results
 
-The ``Job/map(_:)`` modifier will map a Job's result to another value; similar to Swift's built in `map` methods'.
+The ``Job/map(_:)`` modifier will map a Job's result to another value; similar to Swift's built in `map` methods.
 
 The following example maps an integer from the `RandomIntJob` to its String equivalent. 
 
@@ -414,7 +415,7 @@ struct ExampleJob: SubmittableJob, Codable {
   @JobInput var random: String
 
   init() {
-    self.$retried.bind {
+    self.$random.bind {
       RandomIntJob()
         .map { String($0) }
     }
@@ -426,7 +427,7 @@ struct ExampleJob: SubmittableJob, Codable {
 
 ### Map/catch a job's result value or error
 
-``Job/mapToResult()`` maps the result of the job's execute method or any error it throws in a standard `Result`.
+``Job/mapToResult()`` maps the result of the job's execute method or any error it throws to a standard `Result`.
 
 The following example maps an integer from the `RandomIntJob` to its String equivalent. 
 
@@ -436,7 +437,7 @@ struct ExampleJob: SubmittableJob, Codable {
   @JobInput var random: Result<Int, Error>
 
   init() {
-    self.$retried.bind {
+    self.$random.bind {
       RandomIntJob()
         .mapToResult()
     }

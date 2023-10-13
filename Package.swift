@@ -17,7 +17,9 @@ let package = Package(
     .package(url: "https://github.com/SwiftyLab/AsyncObjects.git", .upToNextMinor(from: "2.1.0")),
     .package(url: "https://github.com/outfoxx/potentcodables.git", .upToNextMinor(from: "3.2.0")),
     .package(url: "https://github.com/kdubb/SwiftFriendlyId.git", .upToNextMinor(from: "1.3.1")),
-    .package(url: "https://github.com/outfoxx/IOStreams.git", .upToNextMinor(from: "1.4.2"))
+    .package(url: "https://github.com/outfoxx/IOStreams.git", .upToNextMinor(from: "1.4.2")),
+
+    .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMinor(from: "1.3.0"))
   ],
   targets: [
     .target(
