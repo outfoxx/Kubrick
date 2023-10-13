@@ -452,7 +452,11 @@ called, using `Job/mapToResult()` ensures the job's `execute` method will be cal
 allows inspection of the error during execution.
 
 
-## Wrapping up
+## Where to go next...
 
 That covers the basics of Kubrick's job capabilties. Check out the following resources to learn more about Kubrick's
-advanvced capabilities.
+setting up and using Kubrick.
+
+- <doc:BindingDependantJobs>
+- <doc:JobDirectors>
+

@@ -8,7 +8,101 @@ Details of the different ways to bind dependant jobs to inputs.
 
 ## Overview
 
-In Getting Started's <doc:GettingStarted#Job-with-a-dependency> you were shown the simplest way of binding a dependant
-job to a ``JobInput``.
+Kubrick job dependencies can be bound to ``JobInput`` values in a number of ways. The basic rule for binding a job
+result to a job input is that the the generic types _must_ match.   
 
-### Section header
+While the result and input value are required to match, there are methods for handling optionals and even a builder
+API that makes it easy to bind using different types.
+
+> Note: It's important to not that ``JobInput`` values _must_ be bound in the job's initializer. Attempting execution
+of a job with unbound input will cause an error to be thrown.
+
+
+## Binding to a constant
+
+``JobInput`` values can be bound to constants using the ``JobBinding/bind(value:)``. 
+
+```swift
+struct RandomIntJob: ResultJob {} // Returns `Int`
+
+struct ExampleJob: SubmittableJob, Codable {
+
+  @JobInput var integer: Int
+
+  init() {
+    self.$integer.bind(value: 10)
+  }
+
+}
+```
+
+> Tip: ``JobInput`` values support much easier binding for constants using the assignment opertor!
+```swift
+self.integer = 10
+```
+
+
+## Binding to a Job result
+
+The simples method used to bind inputs to job results is using the ``JobBinding/bind(job:)-87syz``.
+
+```swift
+struct RandomIntJob: ResultJob {} // Returns `Int`
+
+struct ExampleJob: SubmittableJob, Codable {
+
+  @JobInput var integer: Int
+
+  init() {
+    self.$integer.bind(job: RandomIntJob())
+  }
+
+}
+```
+
+### Optional Jobs to optional inputs
+
+When binding to an optional input value, the ``JobBinding/bind(job:)-5sr2w`` function allows
+passing an optional Job itself, which it will map to an optional job result.
+
+```swift
+struct RandomIntJob: ResultJob {} // Returns `Int`
+
+struct ExampleJob: SubmittableJob, Codable {
+
+  @JobInput var integer: Int?
+
+  init(shouldBind: Bool) {
+    self.$integer.bind(job: shouldBind ? RandomIntJob() : nil)
+  }
+
+}
+```
+
+## Binding using the Job builder
+
+Kubrick provides the ``JobBinding/bind(builder:)`` result builder to allow easier binding when the job type may be
+different (e.g. `if`/`else` or `switch`).
+
+Using `if`/`else`...
+```swift
+struct ConstantIntJob: ResultJob {} // Returns `Int`
+struct RandomIntJob: ResultJob {} // Returns `Int`
+
+struct ExampleJob: SubmittableJob, Codable {
+
+  @JobInput var integer: Int?
+
+  init(useRandom: Bool) {
+    self.$integer.bind {
+      if useRandom {
+        RandomIntJob()
+      }
+      else {
+        ConstantIntJob()
+      }
+    }
+  }
+
+}
+```

@@ -1,5 +1,11 @@
 # URLSession Jobs
 
-URL Session download & upload transfer jobs.
+Details on setting up and using URL Session download & upload transfers in jobs.
+
+@Metadata {
+  @PageColor(purple)
+}
 
 ## Overview
+
+Coming soon...
