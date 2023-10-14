@@ -22,155 +22,6 @@ public enum URLSessionJobManagerError: JobError {
   case downloadedFileMissing
 }
 
-
-open class URLSessionJobManagerDelegate: NSObject, URLSessionDownloadDelegate {
-
-  weak var owner: URLSessionJobManager?
-
-  open func urlSession(
-    _ session: URLSession,
-    task: URLSessionTask,
-    didSendBodyData bytesSent: Int64,
-    totalBytesSent: Int64,
-    totalBytesExpectedToSend: Int64
-  ) {
-    guard let owner else { return }
-
-    logger.debug("[\(task.taskIdentifier)] Upload progress update")
-
-    queueTask(session: session) {
-      guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
-        logger.jobTrace {
-          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
-        }
-        return
-      }
-
-      logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
-
-      await owner.director.runAs(jobKey: jobKey) {
-        await taskJobInfo.onProgress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
-      }
-    }
-  }
-
-  open func urlSession(
-    _ session: URLSession,
-    downloadTask task: URLSessionDownloadTask,
-    didWriteData bytesWritten: Int64,
-    totalBytesWritten: Int64,
-    totalBytesExpectedToWrite: Int64
-  ) {
-    guard let owner else { return }
-
-    logger.debug("[\(task.taskIdentifier)] Download progress update")
-
-    queueTask(session: session) {
-      guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
-        logger.jobTrace {
-          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
-        }
-        return
-      }
-
-      logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
-
-      await owner.director.runAs(jobKey: jobKey) {
-        await taskJobInfo.onProgress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
-      }
-    }
-  }
-
-  open func urlSession(
-    _ session: URLSession,
-    downloadTask task: URLSessionDownloadTask,
-    didFinishDownloadingTo location: URL
-  ) {
-    guard let owner else { return }
-
-    logger.debug("[\(task.taskIdentifier)] Download finished")
-
-    let result: ExecuteResult<URL>
-    do {
-      let temporaryDir = try FileManager.default.url(for: .itemReplacementDirectory,
-                                                     in: .userDomainMask,
-                                                     appropriateFor: location, create: true)
-
-      let targetFile = temporaryDir
-        .appendingPathComponent(UniqueID.generateString())
-        .appendingPathExtension("download")
-
-      try FileManager.default.copyItem(at: location, to: targetFile)
-
-      result = .success(targetFile)
-    }
-    catch {
-      logger.error(
-          """
-          [\(task.taskIdentifier)] Failed to move downlaoded file to temporary location: \
-          erorr=\(error, privacy: .public)
-          """
-      )
-      result = .failure(error)
-    }
-
-    queueTask(session: session) {
-      guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
-        logger.jobTrace {
-          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
-        }
-        return
-      }
-
-      guard let downloadTaskJobInfo = taskJobInfo as? URLSessionJobManager.DownloadTaskJobInfo else {
-        logger.error("[\(task.taskIdentifier)] Invalid info for download task")
-        return
-      }
-
-      do {
-        logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Reporting url to job") }
-
-        await downloadTaskJobInfo.save(url: try result.get())
-      }
-      catch {
-        logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Reporting copy failure to job") }
-
-        await downloadTaskJobInfo.future.fulfill(throwing: error)
-      }
-    }
-  }
-
-  open func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    guard let owner else { return }
-
-    if let error {
-      logger.error("[\(task.taskIdentifier)] Task failed: error=\(error, privacy: .public)")
-    }
-    else {
-      logger.debug("[\(task.taskIdentifier)] Task completed successfully")
-    }
-
-    queueTask(session: session) {
-      guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
-        logger.jobTrace {
-          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
-        }
-        return
-      }
-
-      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Fulfilling job") }
-
-      await taskJobInfo.finish(response: task.response as? HTTPURLResponse, error: error)
-    }
-  }
-
-  public func queueTask(session: URLSession, operation: @Sendable @escaping () async throws -> Void) {
-    session.delegateQueue.addOperation(TaskOperation(operation: operation))
-  }
-
-}
-
-
 public actor URLSessionJobManager {
 
   public typealias OnStart = (_ director: JobDirector, _ task: URLSessionTask) async throws -> Void
@@ -295,7 +146,8 @@ public actor URLSessionJobManager {
   public init(
     director: JobDirector,
     primaryConfiguration: URLSessionConfiguration,
-    primaryDelegate: URLSessionJobManagerDelegate? = nil
+    primaryDelegate: URLSessionJobManagerDelegate? = nil,
+    primarySessionDescription: String? = nil
   ) {
     self.director = director
     self.sessionDelegatesQueue = OperationQueue()
@@ -306,6 +158,7 @@ public actor URLSessionJobManager {
     self.primarySession = URLSession(configuration: primaryConfiguration,
                                      delegate: primaryDelegate,
                                      delegateQueue: sessionDelegatesQueue)
+    self.primarySession.sessionDescription = primarySessionDescription
     primaryDelegate.owner = self
 
     self.sessionDelegatesQueue.isSuspended = false
@@ -313,12 +166,14 @@ public actor URLSessionJobManager {
 
   public func addSecondarySession(
     configuration: URLSessionConfiguration,
-    delegate: URLSessionJobManagerDelegate? = nil
+    delegate: URLSessionJobManagerDelegate? = nil,
+    description: String? = nil
   ) {
     let delegate = delegate ?? URLSessionJobManagerDelegate()
     delegate.owner = self
 
     let urlSession = URLSession(configuration: configuration, delegate: delegate, delegateQueue: sessionDelegatesQueue)
+    urlSession.sessionDescription = description
     secondardarySessions.append(urlSession)
   }
 
@@ -475,6 +330,8 @@ public actor URLSessionJobManager {
 }
 
 
+// MARK: Supporting Protocols
+
 protocol URLSessionTaskJobInfo {
 
   var task: URLSessionTask { get }
@@ -484,6 +341,158 @@ protocol URLSessionTaskJobInfo {
 
 }
 
+
+// MARK: Delegate
+
+open class URLSessionJobManagerDelegate: NSObject, URLSessionDownloadDelegate {
+
+  weak var owner: URLSessionJobManager?
+
+  open func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    didSendBodyData bytesSent: Int64,
+    totalBytesSent: Int64,
+    totalBytesExpectedToSend: Int64
+  ) {
+    guard let owner else { return }
+
+    logger.debug("[\(task.taskIdentifier)] Upload progress update")
+
+    queueTask(session: session) {
+      guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
+        logger.jobTrace {
+          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+        }
+        return
+      }
+
+      logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
+
+      await owner.director.runAs(jobKey: jobKey) {
+        await taskJobInfo.onProgress?(Int(bytesSent), Int(totalBytesSent), Int(totalBytesExpectedToSend))
+      }
+    }
+  }
+
+  open func urlSession(
+    _ session: URLSession,
+    downloadTask task: URLSessionDownloadTask,
+    didWriteData bytesWritten: Int64,
+    totalBytesWritten: Int64,
+    totalBytesExpectedToWrite: Int64
+  ) {
+    guard let owner else { return }
+
+    logger.debug("[\(task.taskIdentifier)] Download progress update")
+
+    queueTask(session: session) {
+      guard let (jobKey, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
+        logger.jobTrace {
+          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+        }
+        return
+      }
+
+      logger.jobTrace { $0.debug("[\(task.taskIdentifier)] Reporting progress to job handler") }
+
+      await owner.director.runAs(jobKey: jobKey) {
+        await taskJobInfo.onProgress?(Int(bytesWritten), Int(totalBytesWritten), Int(totalBytesExpectedToWrite))
+      }
+    }
+  }
+
+  open func urlSession(
+    _ session: URLSession,
+    downloadTask task: URLSessionDownloadTask,
+    didFinishDownloadingTo location: URL
+  ) {
+    guard let owner else { return }
+
+    logger.debug("[\(task.taskIdentifier)] Download finished")
+
+    let result: ExecuteResult<URL>
+    do {
+      let temporaryDir = try FileManager.default.url(for: .itemReplacementDirectory,
+                                                     in: .userDomainMask,
+                                                     appropriateFor: location, create: true)
+
+      let targetFile = temporaryDir
+        .appendingPathComponent(UniqueID.generateString())
+        .appendingPathExtension("download")
+
+      try FileManager.default.copyItem(at: location, to: targetFile)
+
+      result = .success(targetFile)
+    }
+    catch {
+      logger.error(
+          """
+          [\(task.taskIdentifier)] Failed to move downlaoded file to temporary location: \
+          erorr=\(error, privacy: .public)
+          """
+      )
+      result = .failure(error)
+    }
+
+    queueTask(session: session) {
+      guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
+        logger.jobTrace {
+          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+        }
+        return
+      }
+
+      guard let downloadTaskJobInfo = taskJobInfo as? URLSessionJobManager.DownloadTaskJobInfo else {
+        logger.error("[\(task.taskIdentifier)] Invalid info for download task")
+        return
+      }
+
+      do {
+        logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Reporting url to job") }
+
+        await downloadTaskJobInfo.save(url: try result.get())
+      }
+      catch {
+        logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Reporting copy failure to job") }
+
+        await downloadTaskJobInfo.future.fulfill(throwing: error)
+      }
+    }
+  }
+
+  open func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    guard let owner else { return }
+
+    if let error {
+      logger.error("[\(task.taskIdentifier)] Task failed: error=\(error, privacy: .public)")
+    }
+    else {
+      logger.debug("[\(task.taskIdentifier)] Task completed successfully")
+    }
+
+    queueTask(session: session) {
+      guard let (_, taskJobInfo) = try await owner.findTaskJobInfo(task: task) else {
+        logger.jobTrace {
+          $0.trace("[\(task.taskIdentifier)] Unrelated task: task-description=\(task.taskDescription ?? "")")
+        }
+        return
+      }
+
+      logger.jobTrace { $0.trace("[\(task.taskIdentifier)] Fulfilling job") }
+
+      await taskJobInfo.finish(response: task.response as? HTTPURLResponse, error: error)
+    }
+  }
+
+  public func queueTask(session: URLSession, operation: @Sendable @escaping () async throws -> Void) {
+    session.delegateQueue.addOperation(TaskOperation(operation: operation))
+  }
+
+}
+
+
+// MARK: - Jobs
 
 public enum URLSessionJobError: Error {
   case invalidResponseStatus
@@ -512,7 +521,7 @@ public struct URLSessionDownloadJobResult: Codable, JobHashable {
 }
 
 
-// MARK: Download Job
+// - MARK: Download Job
 
 public struct URLSessionDownloadFileJob: ResultJob {
 
