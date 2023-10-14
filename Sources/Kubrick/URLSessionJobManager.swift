@@ -331,6 +331,10 @@ public actor URLSessionJobManager {
     try await taskJobInfoCache.valueIfRegistered(for: jobKey)?.task.cancel()
   }
 
+  public nonisolated func stop() {
+    sessionDelegatesQueue.isSuspended = true
+  }
+
 }
 
 
