@@ -206,9 +206,11 @@ public actor URLSessionJobManager {
         downloadTask = existingDownloadTask
       }
       else {
-        logger.info("[\(jobKey)] Starting download task")
         downloadTask = self.primarySession.downloadTask(with: request)
         downloadTask.taskDescription = ExternalJobKey(directorId: self.director.id, jobKey: jobKey).value
+
+        logger.info("[\(jobKey)] Started download task: identifier=\(downloadTask.taskIdentifier)")
+
         downloadTask.resume()
 
         try await onStart?(self.director, downloadTask)
@@ -261,9 +263,11 @@ public actor URLSessionJobManager {
         uploadTask = existingUploadTask
       }
       else {
-        logger.info("[\(jobKey)] Starting upload task")
         uploadTask = self.primarySession.uploadTask(with: request, fromFile: file)
         uploadTask.taskDescription = ExternalJobKey(directorId: self.director.id, jobKey: jobKey).value
+
+        logger.info("[\(jobKey)] Started upload task: identifier=\(uploadTask.taskIdentifier)")
+
         uploadTask.resume()
 
         try await onStart?(self.director, uploadTask)
