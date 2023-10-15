@@ -187,6 +187,8 @@ public actor JobDirector: Identifiable {
 
     try? await waitForCompletionOfCurrentJobs(timeout: seconds ?? 1_000_000)
 
+    await injected.stop()
+
     tasks.removeAll()
   }
 

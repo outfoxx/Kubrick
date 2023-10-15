@@ -152,4 +152,16 @@ public class JobInjectValues {
     }
   }
 
+  public func stop() async {
+    await withTaskGroup(of: Void.self) { group in
+      for managable in values.values.compactMap({ $0 as? JobInjectManagable }) {
+        group.addTask {
+          await managable.stop()
+        }
+      }
+
+      for await _ in group {}
+    }
+  }
+
 }

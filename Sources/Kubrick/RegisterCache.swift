@@ -146,4 +146,19 @@ public actor RegisterCache<Key: Hashable, Value> {
     return try await state[key]?.future.get()
   }
 
+  public func stop() async {
+    
+    // Cancel outstanding...
+    for entry in state.values {
+      Task { await entry.future.fulfill(throwing: CancellationError()) }
+    }
+    
+    // Ensure all cleaned up...
+    for entry in state.values {
+      _ = await entry.future.result
+    }
+
+    state.removeAll()
+  }
+
 }
