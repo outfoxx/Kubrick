@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA84679B2ADB6F5800FEAF80 /* JobCallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA84679A2ADB6F5800FEAF80 /* JobCallbackTests.swift */; };
 		AAF143442AD6243F00CEF3A6 /* KubrickHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143432AD6243F00CEF3A6 /* KubrickHostApp.swift */; };
 		AAF1437D2AD624D100CEF3A6 /* JobEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1436F2AD624D100CEF3A6 /* JobEnvironmentTests.swift */; };
 		AAF1437E2AD624D100CEF3A6 /* RetryJobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF143702AD624D100CEF3A6 /* RetryJobTests.swift */; };
@@ -37,6 +38,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AA84679A2ADB6F5800FEAF80 /* JobCallbackTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = JobCallbackTests.swift; path = ../../Tests/KubrickTests/JobCallbackTests.swift; sourceTree = "<group>"; };
 		AAF143402AD6243F00CEF3A6 /* KubrickHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KubrickHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAF143432AD6243F00CEF3A6 /* KubrickHostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubrickHostApp.swift; sourceTree = "<group>"; };
 		AAF143492AD6244000CEF3A6 /* KubrickHost.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KubrickHost.entitlements; sourceTree = "<group>"; };
@@ -110,6 +112,7 @@
 		AAF143542AD6244000CEF3A6 /* KubrickHostTests */ = {
 			isa = PBXGroup;
 			children = (
+				AA84679A2ADB6F5800FEAF80 /* JobCallbackTests.swift */,
 				AAF143732AD624D100CEF3A6 /* DirectoryWatcherTests.swift */,
 				AAF143762AD624D100CEF3A6 /* ErrorTests.swift */,
 				AAF1437B2AD624D100CEF3A6 /* ExternalJobKeyTests.swift */,
@@ -264,6 +267,7 @@
 				AAF143872AD624D100CEF3A6 /* JobDirectorTests.swift in Sources */,
 				AAF1437D2AD624D100CEF3A6 /* JobEnvironmentTests.swift in Sources */,
 				AAF143882AD624D100CEF3A6 /* TimeDurationTests.swift in Sources */,
+				AA84679B2ADB6F5800FEAF80 /* JobCallbackTests.swift in Sources */,
 				AAF1437F2AD624D100CEF3A6 /* JobDirectorStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

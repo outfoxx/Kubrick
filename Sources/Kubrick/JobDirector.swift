@@ -370,6 +370,15 @@ public actor JobDirector: Identifiable {
         catch {
           logger.error("[\(jobID)] Unexpected processing failure: error=\(error, privacy: .public)")
         }
+
+
+        Task {
+
+          logger.jobTrace { $0.debug("[\(jobID)] Executing job finished") }
+
+          await job.finished(as: JobKey(id: jobID, fingerprint: Data()), for: self)
+        }
+
       }
       catch {
         logger.error("[\(jobID)] Failed to lock job: error=\(error, privacy: .public)")
