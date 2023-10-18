@@ -4,7 +4,7 @@ Director for persistent, resiliant, idempotent, asynchronous jobs built on Swift
 
 @Metadata {
   @PageColor(purple)
-  @PageImage(purpose: icon, source: logo-light)
+  @PageImage(purpose: icon, source: logo)
 }
 
 ## Overview
