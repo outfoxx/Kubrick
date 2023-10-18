@@ -5,7 +5,7 @@
 
 ## Summary
 
-Kubrick is a director for long running tasks known as "jobs" that are guaranteed to complete. Jobs are resiliant across
+Kubrick is a director for long running tasks known as "Jobs" that are guaranteed to complete. Jobs are resiliant across
 process restarts and work between processes like applications and extensions. The framework includes integration with
 long running system services like background `URLSession`s and User Notifications.  
 
