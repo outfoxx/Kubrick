@@ -112,5 +112,5 @@ and relies on the session being configured to launch the main application to pro
 The primary function of having principal and assistant Directors is to coordinate work between a main application and
 one or more extensions using the same Jobs for all scenarios. 
 
-<doc:Explicit-job-transfers>, <doc:URLSessionJobs>, and <doc:UserNotificationJobs> all work together to make working
+<doc:#Explicit-Job-transfers>, <doc:URLSessionJobs>, and <doc:UserNotificationJobs> all work together to make working
 with applications and extensions easier. 

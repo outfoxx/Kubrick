@@ -15,7 +15,7 @@ Jobs to a Director.
 - <doc:#Job-with-an-input>
 - <doc:#Job-with-a-dependency>
 - <doc:#Dependency-injection>
-- <doc:#Dynamically-executing-jobs>
+- <doc:#Dynamically-executing-Jobs>
 - <doc:#A-lesson-in-Job-uniqueness>
 - <doc:#Job-modifiers>
 
@@ -448,7 +448,7 @@ struct ExampleJob: SubmittableJob, Codable {
 ```
 
 In contrast to "normal" processing, where the failure of a dependent Job means the Job's execute method is never
-called, using `Job/mapToResult()` ensures the Job's `execute` method will be called even if the dependency failed and
+called, using ``Job/mapToResult()`` ensures the Job's `execute` method will be called even if the dependency failed and
 allows inspection of the error during execution.
 
 
