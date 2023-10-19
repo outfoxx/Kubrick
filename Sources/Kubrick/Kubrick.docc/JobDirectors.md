@@ -55,13 +55,13 @@ let jobDirector = try JobDirector(id: jobDirectorID, location: jobStoreLocation,
 ```
 
 At this point the principal and the assistant will work together and any Jobs that fail to complete in the assistant
-will be completed by the principal Directory **automatically**. Additionally, the assistant can choose to transfer
+will be completed by the principal Director **automatically**. Additionally, the assistant can choose to transfer
 Jobs to the principal explicitly.
 
 
 ## Job Transfers
 
-Jobs transfer are uni-directional, they only transfer from assistant Directors to the principal Director; they never
+Job transfers are uni-directional, they only transfer from assistant Directors to the principal Director; they never
 transfer from a principal to an assistant.
 
 Principal Directors automatically transfer Jobs from assistants when the assistant is stopped or its processes exits.
