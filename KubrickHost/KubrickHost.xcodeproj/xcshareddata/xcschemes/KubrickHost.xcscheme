@@ -30,24 +30,12 @@
       shouldAutocreateTestPlan = "YES">
       <Testables>
          <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
+            skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "AAF143502AD6244000CEF3A6"
                BuildableName = "KubrickHostTests.xctest"
                BlueprintName = "KubrickHostTests"
-               ReferencedContainer = "container:KubrickHost.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AAF1435A2AD6244000CEF3A6"
-               BuildableName = "KubrickHostUITests.xctest"
-               BlueprintName = "KubrickHostUITests"
                ReferencedContainer = "container:KubrickHost.xcodeproj">
             </BuildableReference>
          </TestableReference>
