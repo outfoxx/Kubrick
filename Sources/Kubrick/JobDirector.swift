@@ -319,7 +319,7 @@ public actor JobDirector: Identifiable {
 
     guard state == .running else {
 
-      logger.error("Job submitted in '\(self.state)' state")
+      logger.error("Job submitted in '\(self.state, privacy: .public)' state")
 
       throw JobDirectorError.invalidDirectorState
     }
