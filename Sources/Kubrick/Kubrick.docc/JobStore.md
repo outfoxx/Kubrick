@@ -1,6 +1,6 @@
 # Job Store
 
-Details of the `job-store` format used to save/restore job state.
+Details of the `job-store` format used to save/restore Job state.
 
 @Metadata {
   @PageColor(purple)
@@ -9,9 +9,9 @@ Details of the `job-store` format used to save/restore job state.
 ## Overview
 
 A `job-store` is a binary "file based database" that can be accessed by multiple processes and allows
-cross-process notifications of job activity.
+cross-process notifications of Job activity.
 
-### `jobs` directory
+### `Jobs` directory
 
-### `assistants` directory
+### `Assistants` directory
 

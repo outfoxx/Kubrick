@@ -1,6 +1,6 @@
 # User Notification Jobs
 
-Using jobs for displaying User Notifications and processing their responses.
+Using Jobs for displaying User Notifications and processing their responses.
 
 @Metadata {
   @PageColor(purple)
