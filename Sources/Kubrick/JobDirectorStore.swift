@@ -11,8 +11,12 @@
 import AsyncObjects
 import Foundation
 import IOStreams
+import OSLog
 import PotentCBOR
 import UniformTypeIdentifiers
+
+
+private let logger = Logger.for(category: "JobDirectorStore")
 
 
 class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
@@ -200,19 +204,32 @@ class JobDirectorStore: RegisterCacheStore, SubmittableJobStore {
 
   func loadPayloads<Payload: Decodable, Key>(items: [(Key, URL)], as type: Payload.Type) async throws -> [(Key, Payload)] {
 
-    return try await withThrowingTaskGroup(of: (Key, Payload).self) { group in
+    return try await withThrowingTaskGroup(of: (Key, Payload)?.self) { group in
 
       for (key, url) in items {
         group.addTask {
           
-          let payload = try await self.loadPayload(at: url, as: Payload.self)
+          do {
+            let payload = try await self.loadPayload(at: url, as: Payload.self)
 
-          return (key, payload)
+            return (key, payload)
+          }
+          catch {
+            logger.error(
+              """
+              Failed to load payload: \
+              type=\(type, privacy: .public), \
+              url=\(url, privacy: .public), \
+              error=\(error, privacy: .public)
+              """
+            )
+            return nil
+          }
         }
       }
 
       var payloads: [(Key, Payload)] = []
-      for try await (key, payload) in group {
+      for try await (key, payload) in group.compactMap({ $0 }) {
         payloads.append((key, payload))
       }
       return payloads
