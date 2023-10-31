@@ -299,7 +299,7 @@ public actor JobDirector: Identifiable {
           loaded = try await store.loadJob(jobID: jobID)
         }
         catch {
-          logger.info("Failed to load transferred job: job-id=\(jobID)")
+          logger.error("Failed to load transferred job: job-id=\(jobID), error=\(error, privacy: .public)")
           return
         }
 
