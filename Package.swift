@@ -19,7 +19,10 @@ let package = Package(
     .package(url: "https://github.com/kdubb/SwiftFriendlyId.git", .upToNextMinor(from: "1.3.1")),
     .package(url: "https://github.com/outfoxx/IOStreams.git", .upToNextMinor(from: "1.4.2")),
 
-    .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMinor(from: "1.3.0"))
+    .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMinor(from: "1.3.0")),
+
+    // Test Pacakges
+    .package(url: "https://github.com/outfoxx/sunday-swift.git", .upToNextMinor(from: "1.0.0-beta.29")),
   ],
   targets: [
     .target(
@@ -33,6 +36,13 @@ let package = Package(
       resources: [
         .process("Kubrick.docc")
       ]
-    )
+    ),
+    .testTarget(
+      name: "KubrickTests",
+      dependencies: [
+        "Kubrick",
+        .product(name: "SundayServer", package: "sunday-swift")
+      ]
+    )    
   ]
 )
