@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/outfoxx/sunday-swift.git",
       "state" : {
-        "revision" : "307e6ca46f5ff3a54d9d7699599b4f9e4097bfcc",
-        "version" : "1.0.0-beta.27"
+        "revision" : "adfdd7a2d08f5335bd0ce8d86cb16f9b3a4e6d8d",
+        "version" : "1.0.0-beta.29"
       }
     },
     {

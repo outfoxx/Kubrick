@@ -125,7 +125,8 @@
 				AAF1437A2AD624D100CEF3A6 /* TimeDurationTests.swift */,
 				AAF1437C2AD624D100CEF3A6 /* URLSessionJobManagerTests.swift */,
 			);
-			path = KubrickHostTests;
+			name = KubrickHostTests;
+			path = ../Tests/KubrickTests;
 			sourceTree = "<group>";
 		};
 		AAF1438B2AD628D500CEF3A6 /* Frameworks */ = {
@@ -406,7 +407,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
-				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -441,7 +442,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
-				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -549,8 +550,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/outfoxx/sunday-swift.git";
 			requirement = {
-				kind = exactVersion;
-				version = "1.0.0-beta.27";
+				kind = upToNextMinorVersion;
+				minimumVersion = "1.0.0-beta.27";
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
